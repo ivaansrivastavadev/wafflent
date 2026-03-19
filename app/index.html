@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wafflent Terminal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Gruvbox Color Palette */
+        :root {
+            --bg-dark: #282828;
+            --bg-light: #3c3836;
+            --fg-main: #ebdbb2;
+            --fg-dim: #a89984;
+            --red: #cc241d;
+            --red-bright: #fb4934;
+            --green: #98971a;
+            --green-bright: #b8bb26;
+            --yellow: #d79921;
+            --yellow-bright: #fabd2f;
+            --blue: #458588;
+            --blue-bright: #83a598;
+            --purple: #b16286;
+            --purple-bright: #d3869b;
+            --aqua: #689d6a;
+            --aqua-bright: #8ec07c;
+            --orange: #d65d0e;
+            --orange-bright: #fe8019;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', 'Monaco', monospace;
+            background: var(--bg-dark);
+            color: var(--fg-main);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: var(--bg-light);
+            padding: 0.8rem 1.5rem;
+            border-bottom: 2px solid var(--yellow);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .navbar .logo {
+            color: var(--yellow-bright);
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar .logo i {
+            color: var(--orange-bright);
+        }
+
+        /* Terminal Container */
+        .terminal-container {
+            height: calc(100vh - 60px);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .terminal {
+            background: var(--bg-dark);
+            height: 100%;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--bg-light);
+        }
+
+        .terminal-title {
+            color: var(--aqua-bright);
+            font-weight: bold;
+        }
+
+        /* Terminal Output */
+        .terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.4;
+            font-family: 'Courier New', 'Monaco', monospace;
+        }
+
+        .prompt {
+            color: var(--green-bright);
+        }
+
+        .command {
+            color: var(--fg-main);
+        }
+
+        .error {
+            color: var(--red-bright);
+        }
+
+        .success {
+            color: var(--green-bright);
+        }
+
+        .warning {
+            color: var(--yellow-bright);
+        }
+
+        .info {
+            color: var(--blue-bright);
+        }
+
+        /* Inline Input */
+        .current-input-line {
+            display: flex;
+            align-items: baseline;
+            font-family: 'Courier New', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
+            margin: 0;
+            padding: 0;
+        }
+
+        .current-prompt {
+            color: var(--green-bright);
+            font-weight: bold;
+            white-space: nowrap;
+            margin-right: 0.5rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+        }
+
+        #command-input, .command-input {
+            background: transparent !important;
+            border: none !important;
+            color: var(--fg-main);
+            font-family: 'Courier New', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            width: 100%;
+            outline: none !important;
+            padding: 0;
+            margin: 0;
+            min-width: 0;
+            box-shadow: none !important;
+            /* Remove any browser styling */
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+        }
+
+        .command-input::placeholder {
+            color: var(--fg-dim);
+        }
+
+        /* Remove focus outline and any highlighting */
+        .command-input:focus {
+            outline: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+        }
+
+        /* Command display after execution */
+        .executed-command {
+            display: flex;
+            align-items: baseline;
+            font-family: 'Courier New', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .executed-prompt {
+            color: var(--green-bright);
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        /* Autocomplete Dropdown */
+        .autocomplete-dropdown {
+            position: absolute;
+            background: var(--bg-light);
+            border: 1px solid var(--yellow);
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            min-width: 300px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            left: 0;
+            right: 0;
+            /* Position will be set dynamically above or below */
+        }
+
+        .autocomplete-item {
+            padding: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--bg-dark);
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: var(--yellow);
+            color: var(--bg-dark);
+        }
+
+        .autocomplete-command {
+            font-weight: bold;
+            color: var(--green-bright);
+        }
+
+        .autocomplete-item:hover .autocomplete-command,
+        .autocomplete-item.selected .autocomplete-command {
+            color: var(--bg-dark);
+        }
+
+        .autocomplete-description {
+            color: var(--fg-dim);
+            font-size: 0.9em;
+        }
+
+        .autocomplete-item:hover .autocomplete-description,
+        .autocomplete-item.selected .autocomplete-description {
+            color: var(--bg-dark);
+        }
+
+        .autocomplete-icon {
+            color: var(--blue-bright);
+        }
+
+        .autocomplete-item:hover .autocomplete-icon,
+        .autocomplete-item.selected .autocomplete-icon {
+            color: var(--bg-dark);
+        }
+
+        /* Installation Screen */
+        .install-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .install-content {
+            text-align: center;
+            padding: 2rem;
+            border: 2px solid var(--yellow);
+            border-radius: 8px;
+            background: var(--bg-light);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .install-title {
+            color: var(--yellow-bright);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .install-progress {
+            margin: 1rem 0;
+        }
+
+        .progress-bar {
+            background: var(--bg-dark);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            background: var(--green-bright);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .password-input {
+            background: var(--bg-dark);
+            border: 1px solid var(--fg-dim);
+            color: var(--fg-main);
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-family: inherit;
+            margin: 0.5rem;
+            width: 200px;
+        }
+
+        .install-button {
+            background: var(--green);
+            color: var(--fg-main);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            margin: 0.5rem;
+        }
+
+        .install-button:hover {
+            background: var(--green-bright);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-light);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--fg-dim);
+        }
+    </style>
+</head>
+<body>
+    <!-- Installation Screen -->
+    <div id="install-screen" class="install-screen">
+        <div class="install-content">
+            <div class="install-title">
+                <i class="fas fa-download"></i>
+                Wafflent OS
+            </div>
+            <div id="install-message">Initializing system installation...</div>
+            <div class="install-progress">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="progress-text">0%</div>
+            </div>
+            <div id="password-prompt" class="hidden">
+                <p>Enter root passcode for system access:</p>
+                <input type="password" id="root-password" class="password-input" placeholder="Enter passcode">
+                <br>
+                <button id="install-button" class="install-button">
+                    <i class="fas fa-key"></i> Install System
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Interface -->
+    <div id="main-interface" class="hidden">
+        <!-- Navbar -->
+        <nav class="navbar">
+            <div class="logo">
+                <i class="fas fa-terminal"></i>
+                Wafflent
+            </div>
+        </nav>
+
+        <!-- Terminal Container -->
+        <div class="terminal-container">
+            <div class="terminal">
+                <div id="terminal-output" class="terminal-output">
+                    <!-- Output content goes here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="processor.js"></script>
+    <script>
+        // System state
+        let systemInstalled = false;
+        let rootPasswordHash = '';
+        let commandHistory = [];
+        let historyIndex = -1;
+        let autocompleteIndex = -1;
+        let currentSuggestions = [];
+        let processor = null;
+
+        // DOM elements
+        const installScreen = document.getElementById('install-screen');
+        const mainInterface = document.getElementById('main-interface');
+        const installMessage = document.getElementById('install-message');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const passwordPrompt = document.getElementById('password-prompt');
+        const rootPasswordInput = document.getElementById('root-password');
+        const installButton = document.getElementById('install-button');
+        const terminalOutput = document.getElementById('terminal-output');
+        
+        // These will be set dynamically for the inline input system
+        let commandInput = null;
+        let autocompleteDropdown = null;
+
+        // Encryption utility
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hash))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        // System initialization
+        function checkSystemInstallation() {
+            const installed = localStorage.getItem('wafflent_system_installed');
+            const rootHash = localStorage.getItem('wafflent_root_hash');
+            
+            if (installed === 'true' && rootHash) {
+                systemInstalled = true;
+                rootPasswordHash = rootHash;
+                showMainInterface();
+            } else {
+                showInstallScreen();
+            }
+        }
+
+        // Installation process
+        function showInstallScreen() {
+            installScreen.classList.remove('hidden');
+            mainInterface.classList.add('hidden');
+            startInstallation();
+        }
+
+        function showMainInterface() {
+            installScreen.classList.add('hidden');
+            mainInterface.classList.remove('hidden');
+            terminalOutput.innerHTML = '';
+            
+            // Initialize processor
+            processor = new WafflentProcessor();
+            
+            // External programs are now loaded dynamically by the processor
+            installExternalPrograms();
+            
+            printWelcomeMessage();
+        }
+
+        // External programs are now loaded dynamically by the processor
+        function installExternalPrograms() {
+            // This function is now deprecated - programs are loaded dynamically
+            // from the /bin/coreutils/ directory by the processor
+        }
+
+        async function startInstallation() {
+            const steps = [
+                'Downloading system kernel...',
+                'Installing core utilities...',
+                'Setting up file system...',
+                'Configuring security modules...',
+                'Installing command modules...',
+                'Finalizing installation...'
+            ];
+
+            for (let i = 0; i < steps.length; i++) {
+                installMessage.textContent = steps[i];
+                const progress = ((i + 1) / steps.length) * 100;
+                progressFill.style.width = progress + '%';
+                progressText.textContent = Math.round(progress) + '%';
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            installMessage.textContent = 'Installation complete! Set root access password:';
+            passwordPrompt.classList.remove('hidden');
+        }
+
+        // Install system
+        installButton.addEventListener('click', async () => {
+            const password = rootPasswordInput.value;
+            if (!password) {
+                alert('Please enter a root password');
+                return;
+            }
+
+            installButton.disabled = true;
+            installButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Installing...';
+
+            // Hash password
+            rootPasswordHash = await hashPassword(password);
+            
+            // Save system state
+            localStorage.setItem('wafflent_system_installed', 'true');
+            localStorage.setItem('wafflent_root_hash', rootPasswordHash);
+            localStorage.setItem('wafflent_install_time', Date.now().toString());
+            
+            systemInstalled = true;
+            setTimeout(() => {
+                showMainInterface();
+            }, 1000);
+        });
+
+        // Terminal functions
+        function printWelcomeMessage() {
+            const welcome = `<span class="info">Welcome to the terminal v1.0</span>
+<span class="success">System initialized successfully</span>
+<span class="warning">Type 'help' for available commands</span>
+
+`;
+            terminalOutput.innerHTML = welcome;
+            showPrompt();
+        }
+
+        function showPrompt() {
+            // Create inline prompt
+            const promptLine = document.createElement('div');
+            promptLine.className = 'current-input-line';
+            promptLine.innerHTML = `
+                <span class="current-prompt">wafflent@system:~$</span>
+                <div class="input-wrapper">
+                    <div class="autocomplete-dropdown hidden"></div>
+                    <input type="text" class="command-input" placeholder="" autocomplete="off">
+                </div>
+            `;
+            
+            terminalOutput.appendChild(promptLine);
+            
+            // Update references
+            const newCommandInput = promptLine.querySelector('.command-input');
+            const newAutocompleteDropdown = promptLine.querySelector('.autocomplete-dropdown');
+            
+            // Set global references
+            commandInput = newCommandInput;
+            autocompleteDropdown = newAutocompleteDropdown;
+            
+            // Add event listeners
+            if (commandInput) {
+                commandInput.addEventListener('keydown', handleKeyDown);
+                commandInput.addEventListener('input', handleInput);
+                
+                // Focus the input
+                commandInput.focus();
+            }
+            
+            // Scroll to bottom
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        function updateCommandInputReference() {
+            // This function is no longer needed but kept for compatibility
+        }
+
+        function appendToTerminal(text) {
+            if (!text.trim()) {
+                // Add empty line
+                const emptyElement = document.createElement('div');
+                emptyElement.innerHTML = '&nbsp;';
+                terminalOutput.appendChild(emptyElement);
+            } else {
+                // Add the text
+                const textElement = document.createElement('div');
+                textElement.innerHTML = text;
+                terminalOutput.appendChild(textElement);
+            }
+            
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        // Autocomplete functions
+        function getAvailableCommands() {
+            // Get commands dynamically from the processor
+            if (processor && processor.initialized) {
+                return processor.getAvailableCommands();
+            }
+            // Fallback to basic commands if processor not initialized yet
+            return [
+                { name: 'help', description: 'Show available commands', icon: 'fas fa-question-circle' },
+                { name: 'cd', description: 'Change directory', icon: 'fas fa-folder-open' },
+                { name: 'pwd', description: 'Show current directory', icon: 'fas fa-folder' },
+                { name: 'ls', description: 'List files and directories', icon: 'fas fa-list' },
+                { name: 'clear', description: 'Clear terminal screen', icon: 'fas fa-broom' }
+            ];
+        }
+
+        function filterCommands(input) {
+            if (!input.trim()) return [];
+            
+            const commands = getAvailableCommands();
+            const filtered = [];
+            
+            // Filter commands that start with the input
+            for (const commandData of commands) {
+                const commandName = typeof commandData === 'string' ? commandData : commandData.name;
+                if (commandName && commandName.toLowerCase().startsWith(input.toLowerCase())) {
+                    filtered.push(commandData);
+                }
+                if (filtered.length >= 8) break; // Limit to 8 suggestions
+            }
+            
+            return filtered;
+        }
+
+        function showAutocomplete(suggestions) {
+            if (suggestions.length === 0 || !commandInput || !autocompleteDropdown) {
+                hideAutocomplete();
+                return;
+            }
+
+            currentSuggestions = suggestions;
+            autocompleteIndex = -1;
+            
+            autocompleteDropdown.innerHTML = '';
+            
+            suggestions.forEach((cmdData, index) => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                item.dataset.index = index;
+                
+                // Handle both string commands and command objects
+                const commandName = typeof cmdData === 'string' ? cmdData : cmdData.name;
+                const commandIcon = typeof cmdData === 'object' ? cmdData.icon : 'fas fa-terminal';
+                const commandDesc = typeof cmdData === 'object' ? cmdData.description : 'Command';
+                
+                item.innerHTML = `
+                    <i class="${commandIcon || 'fas fa-terminal'} autocomplete-icon"></i>
+                    <span class="autocomplete-command">${commandName}</span>
+                    <span class="autocomplete-description">${commandDesc || 'Command'}</span>
+                `;
+                
+                item.addEventListener('click', () => {
+                    commandInput.value = commandName + ' ';
+                    hideAutocomplete();
+                    commandInput.focus();
+                });
+                
+                autocompleteDropdown.appendChild(item);
+            });
+
+            // Position the dropdown relative to the input wrapper
+            const inputWrapper = commandInput.closest('.input-wrapper');
+            const inputRect = inputWrapper.getBoundingClientRect();
+            const terminalRect = terminalOutput.getBoundingClientRect();
+            
+            // Calculate available space above and below
+            const spaceAbove = inputRect.top - terminalRect.top;
+            const spaceBelow = terminalRect.bottom - inputRect.bottom;
+            
+            // Estimate dropdown height (40px per item + padding)
+            const estimatedHeight = Math.min(suggestions.length * 40 + 10, 200);
+            
+            // Position above if there's more space above or if there's not enough space below
+            if (spaceAbove > estimatedHeight || spaceBelow < estimatedHeight) {
+                // Position above the input
+                autocompleteDropdown.style.bottom = '100%';
+                autocompleteDropdown.style.top = 'auto';
+                autocompleteDropdown.style.marginBottom = '2px';
+                autocompleteDropdown.style.marginTop = '0';
+            } else {
+                // Position below the input
+                autocompleteDropdown.style.top = '100%';
+                autocompleteDropdown.style.bottom = 'auto';
+                autocompleteDropdown.style.marginTop = '2px';
+                autocompleteDropdown.style.marginBottom = '0';
+            }
+            
+            autocompleteDropdown.classList.remove('hidden');
+        }
+
+        function hideAutocomplete() {
+            if (autocompleteDropdown) {
+                autocompleteDropdown.classList.add('hidden');
+            }
+            currentSuggestions = [];
+            autocompleteIndex = -1;
+        }
+
+        function updateAutocompleteSelection(direction) {
+            const items = autocompleteDropdown.querySelectorAll('.autocomplete-item');
+            if (items.length === 0) return;
+
+            // Remove previous selection
+            items[autocompleteIndex]?.classList.remove('selected');
+
+            // Update index
+            if (direction === 'up') {
+                autocompleteIndex = autocompleteIndex <= 0 ? items.length - 1 : autocompleteIndex - 1;
+            } else {
+                autocompleteIndex = autocompleteIndex >= items.length - 1 ? 0 : autocompleteIndex + 1;
+            }
+
+            // Add new selection
+            items[autocompleteIndex].classList.add('selected');
+        }
+
+        function selectCurrentAutocomplete() {
+            if (autocompleteIndex >= 0 && currentSuggestions[autocompleteIndex]) {
+                const selectedCmd = currentSuggestions[autocompleteIndex];
+                const commandName = typeof selectedCmd === 'string' ? selectedCmd : selectedCmd.name;
+                commandInput.value = commandName + ' ';
+                hideAutocomplete();
+                return true;
+            }
+            return false;
+        }
+
+        function executeCommand(command) {
+            if (!command.trim()) {
+                showPrompt();
+                return;
+            }
+
+            // Add to history
+            commandHistory.push(command);
+            historyIndex = commandHistory.length;
+
+            // Hide autocomplete
+            hideAutocomplete();
+
+            // Convert current input line to executed command display
+            const currentInputLine = terminalOutput.querySelector('.current-input-line');
+            if (currentInputLine) {
+                currentInputLine.className = 'executed-command';
+                currentInputLine.innerHTML = `
+                    <span class="executed-prompt">wafflent@system:~$</span>
+                    <span class="command">${command}</span>
+                `;
+            }
+
+            // Use processor to execute command
+            if (processor) {
+                processor.executeCommand(command).then(() => {
+                    showPrompt();
+                }).catch(error => {
+                    processor.stdout(`Error: ${error.message}`, 'error');
+                    showPrompt();
+                });
+            } else {
+                appendToTerminal('<span class="error">System not initialized</span>');
+                showPrompt();
+            }
+        }
+
+        function appendToTerminal(text) {
+            terminalOutput.innerHTML += text + '\n';
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        function getCurrentUser() {
+            return currentUser;
+        }
+
+        // Event handler functions
+        function handleKeyDown(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                // Check if autocomplete is shown and an item is selected
+                if (!selectCurrentAutocomplete()) {
+                    hideAutocomplete();
+                    const command = e.target.value;
+                    executeCommand(command);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!autocompleteDropdown || autocompleteDropdown.classList.contains('hidden')) {
+                    // Navigate command history
+                    if (historyIndex > 0) {
+                        historyIndex--;
+                        e.target.value = commandHistory[historyIndex] || '';
+                    }
+                } else {
+                    // Navigate autocomplete
+                    updateAutocompleteSelection('up');
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!autocompleteDropdown || autocompleteDropdown.classList.contains('hidden')) {
+                    // Navigate command history
+                    if (historyIndex < commandHistory.length - 1) {
+                        historyIndex++;
+                        e.target.value = commandHistory[historyIndex] || '';
+                    } else {
+                        historyIndex = commandHistory.length;
+                        e.target.value = '';
+                    }
+                } else {
+                    // Navigate autocomplete
+                    updateAutocompleteSelection('down');
+                }
+            } else if (e.key === 'Escape') {
+                // Hide autocomplete
+                hideAutocomplete();
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                // Auto-complete with first suggestion or selected item
+                if (currentSuggestions.length > 0) {
+                    const selectedIndex = autocompleteIndex >= 0 ? autocompleteIndex : 0;
+                    const selectedCmd = currentSuggestions[selectedIndex];
+                    const commandName = typeof selectedCmd === 'string' ? selectedCmd : selectedCmd.name;
+                    e.target.value = commandName + ' ';
+                    hideAutocomplete();
+                }
+            }
+        }
+
+        function handleInput(e) {
+            const input = e.target.value.trim();
+            const parts = input.split(' ');
+            const currentCommand = parts[0];
+
+            // Only show autocomplete for the first word (command)
+            if (parts.length === 1 && currentCommand && currentCommand.length > 0) {
+                const suggestions = filterCommands(currentCommand);
+                showAutocomplete(suggestions);
+            } else {
+                hideAutocomplete();
+            }
+        }
+
+        // Initialize system
+        document.addEventListener('DOMContentLoaded', () => {
+            checkSystemInstallation();
+        });
+
+        // Hide autocomplete when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.input-wrapper') && !e.target.closest('.autocomplete-dropdown')) {
+                hideAutocomplete();
+            }
+        });
+
+        // Focus input when clicking in terminal
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.terminal-output')) {
+                const currentInput = document.querySelector('.current-input-line .command-input');
+                if (currentInput) {
+                    currentInput.focus();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
