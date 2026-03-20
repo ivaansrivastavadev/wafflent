@@ -106,7 +106,7 @@ function rm(context) {
             }
             
             // Prevent removal of system directories
-            if (resolvedPath.startsWith('/sys/') || resolvedPath.startsWith('/bin/') || 
+            if (resolvedPath.startsWith('/sys/') || resolvedPath.startsWith('/pkgs/') || 
                 resolvedPath === '/' || resolvedPath === '/home' || resolvedPath === '/usr' || resolvedPath === '/tmp') {
                 stdout(`rm: cannot remove '${target}': Operation not permitted`, 'error');
                 errorCount++;

@@ -150,7 +150,7 @@ function mv(context) {
             }
             
             // Prevent moving system directories
-            if (sourcePath.startsWith('/sys/') || sourcePath.startsWith('/bin/') || 
+            if (sourcePath.startsWith('/sys/') || sourcePath.startsWith('/pkgs/') || 
                 sourcePath === '/' || sourcePath === '/home' || sourcePath === '/usr' || sourcePath === '/tmp') {
                 stdout(`mv: cannot move '${source}': Operation not permitted`, 'error');
                 errorCount++;

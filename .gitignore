@@ -1,3 +1,4 @@
-/tests
-/temp
+/tests/
+/temp/
 /opencode-rules.txt
+/localstore/

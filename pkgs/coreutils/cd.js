@@ -12,7 +12,7 @@ function cd(context) {
     }
     
     if (args.length === 0) {
-        processor.currentDir = '/home/user';
+        processor.currentDir = '/usr';
         return;
     }
 

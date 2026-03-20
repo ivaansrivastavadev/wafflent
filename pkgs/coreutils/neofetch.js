@@ -90,18 +90,18 @@ function neofetch(context) {
             }
         }
         
-        // Count packages (programs in /bin/coreutils)
+        // Count packages (programs in /pkgs/coreutils)
         // First try the new wafflent_data structure
         let programs = 0;
         try {
             const wafflentData = JSON.parse(localStorage.getItem('wafflent_data') || '{}');
             programs = Object.keys(wafflentData).filter(path => 
-                path.startsWith('/bin/coreutils/') && path.endsWith('.js')
+                path.startsWith('/pkgs/coreutils/') && path.endsWith('.js')
             ).length;
         } catch (e) {
             // Fallback to legacy method
             programs = Object.keys(localStorage).filter(key => 
-                key.startsWith('wafflent_file_/bin/coreutils/') && key.endsWith('.js')
+                key.startsWith('wafflent_file_/pkgs/coreutils/') && key.endsWith('.js')
             ).length;
         }
         

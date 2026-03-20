@@ -4,7 +4,7 @@
 class WafflentProcessor {
     constructor() {
         this.fileSystem = new Map();
-        this.currentDir = '/home/user';
+        this.currentDir = '/usr';
         this.currentUser = 'user';
         this.isRoot = false;
         this.initialized = false;
@@ -20,16 +20,16 @@ class WafflentProcessor {
         // Create base directories
         this.createDirectory('/');
         this.createDirectory('/home');
-        this.createDirectory('/home/user');
         this.createDirectory('/sys');
         this.createDirectory('/sys/core');
         this.createDirectory('/sys/extra');
-        this.createDirectory('/bin');
-        this.createDirectory('/bin/coreutils');
-        this.createDirectory('/bin/tests');
+        this.createDirectory('/pkgs');
+        this.createDirectory('/pkgs/coreutils');
+        this.createDirectory('/pkgs/tests');
         this.createDirectory('/usr');
         this.createDirectory('/home');
         this.createDirectory('/tmp');
+        this.createDirectory('/lib');
 
         // Load filesystem state from localStorage if available
         this.loadFileSystemFromStorage();
@@ -73,21 +73,21 @@ console.log('System ready.');`);
             
             // Load coreutils commands
             for (const filename of commandFiles) {
-                const result = await this.loadFileWithUpdate(`../pkgs/coreutils/${filename}`, `/bin/coreutils/${filename}`);
+                const result = await this.loadFileWithUpdate(`../pkgs/coreutils/${filename}`, `/pkgs/coreutils/${filename}`);
                 if (result.loaded) loaded++;
                 if (result.updated) {
                     updated++;
-                    updates.push(`/bin/coreutils/${filename}`);
+                    updates.push(`/pkgs/coreutils/${filename}`);
                 }
             }
             
             // Load test commands  
             for (const filename of testFiles) {
-                const result = await this.loadFileWithUpdate(`../tests/${filename}`, `/bin/tests/${filename}`);
+                const result = await this.loadFileWithUpdate(`../tests/${filename}`, `/pkgs/tests/${filename}`);
                 if (result.loaded) loaded++;
                 if (result.updated) {
                     updated++;
-                    updates.push(`/bin/tests/${filename}`);
+                    updates.push(`/pkgs/tests/${filename}`);
                 }
             }
             
@@ -204,14 +204,14 @@ console.log('System ready.');`);
         
         // Scan filesystem for all command files (now all commands are external)
         for (const [path, entry] of this.fileSystem.entries()) {
-            if ((path.startsWith('/bin/coreutils/') || path.startsWith('/tests/')) && path.endsWith('.js') && entry.type === 'file') {
+            if ((path.startsWith('/pkgs/coreutils/') || path.startsWith('/pkgs/tests/')) && path.endsWith('.js') && entry.type === 'file') {
                 let commandName, directory;
                 
-                if (path.startsWith('/bin/coreutils/')) {
-                    commandName = path.substring('/bin/coreutils/'.length, path.length - 3);
+                if (path.startsWith('/pkgs/coreutils/')) {
+                    commandName = path.substring('/pkgs/coreutils/'.length, path.length - 3);
                     directory = 'coreutils';
-                } else if (path.startsWith('/tests/')) {
-                    commandName = path.substring('/tests/'.length, path.length - 3);
+                } else if (path.startsWith('/pkgs/tests/')) {
+                    commandName = path.substring('/pkgs/tests/'.length, path.length - 3);
                     directory = 'tests';
                 }
                 
@@ -434,12 +434,12 @@ console.log('System ready.');`);
 
     async executeExternalCommand(command, args) {
         // Try coreutils first, then tests
-        let commandPath = `/bin/coreutils/${command}.js`;
+        let commandPath = `/pkgs/coreutils/${command}.js`;
         let entry = this.fileSystem.get(commandPath);
         
         if (!entry || entry.type !== 'file') {
             // Try tests directory
-            commandPath = `/tests/${command}.js`;
+            commandPath = `/pkgs/tests/${command}.js`;
             entry = this.fileSystem.get(commandPath);
         }
         
@@ -461,8 +461,12 @@ console.log('System ready.');`);
             
             // Execute the command function
             try {
+                // Load command API helper classes
+                const apiCode = await this.loadCommandAPI();
+                
                 // Create a new function that wraps the command code and returns the command function
                 const wrappedCode = `
+                    ${apiCode}
                     ${entry.content}
                     return ${command};
                 `;
@@ -480,6 +484,32 @@ console.log('System ready.');`);
             }
         } catch (error) {
             this.stdout(`${command}: ${error.message}`, 'error');
+        }
+    }
+
+    async loadCommandAPI() {
+        // Load the command API helper from lib/command-api.js
+        try {
+            const apiPath = '/lib/command-api.js';
+            let apiContent = this.getFileContent(apiPath);
+            
+            if (!apiContent) {
+                // Try to load from actual file
+                const response = await fetch('../lib/command-api.js');
+                if (response.ok) {
+                    apiContent = await response.text();
+                    // Store it in the virtual filesystem for future use
+                    this.createFile(apiPath, apiContent);
+                } else {
+                    // Return empty string if API not available
+                    return '';
+                }
+            }
+            
+            return apiContent;
+        } catch (error) {
+            console.warn('Could not load command API:', error);
+            return '';
         }
     }
 
@@ -508,7 +538,7 @@ console.log('System ready.');`);
             
             // Load user files from the new structure
             for (const [path, content] of Object.entries(wafflentData)) {
-                if (!path.startsWith('/sys/') && !path.startsWith('/prog/') && !path.startsWith('/tests/') && !path.startsWith('/bin/')) {
+                if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
                     // Only user files (not system files)
                     if (content === null) {
                         // This is a .folderkeeper entry for empty directories
@@ -525,7 +555,7 @@ console.log('System ready.');`);
                 const parsed = JSON.parse(fsData);
                 // Only load user files, not system files - those should be loaded fresh
                 for (const [path, entry] of Object.entries(parsed)) {
-                    if (!path.startsWith('/sys/') && !path.startsWith('/prog/') && !path.startsWith('/tests/') && !path.startsWith('/bin/')) {
+                    if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
                         if (!this.fileSystem.has(path)) { // Don't overwrite data from new structure
                             this.fileSystem.set(path, entry);
                         }
@@ -549,7 +579,7 @@ console.log('System ready.');`);
             
             // Add user files to wafflent_data (preserve existing system files)
             for (const [path, entry] of this.fileSystem.entries()) {
-                if (!path.startsWith('/sys/') && !path.startsWith('/prog/') && !path.startsWith('/tests/') && !path.startsWith('/bin/')) {
+                if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
                     if (entry.type === 'file') {
                         wafflentData[path] = entry.content || '';
                     }
@@ -562,7 +592,7 @@ console.log('System ready.');`);
             // Keep legacy wafflent_filesystem for backward compatibility
             const userFiles = {};
             for (const [path, entry] of this.fileSystem.entries()) {
-                if (!path.startsWith('/sys/') && !path.startsWith('/prog/') && !path.startsWith('/tests/') && !path.startsWith('/bin/')) {
+                if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
                     userFiles[path] = entry;
                 }
             }
