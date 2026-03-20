@@ -64,7 +64,7 @@ console.log('System ready.');`);
     async loadExternalCommands() {
         // Load external commands from actual files with localStorage persistence and update detection
         try {
-            const commandFiles = ['echo.js', 'date.js', 'uname.js', 'uptime.js', 'touch.js', 'mkdir.js', 'rm.js', 'cp.js', 'mv.js', 'find.js', 'nbasic.js', 'neofetch.js', 'log.js', 'puter.js'];
+            const commandFiles = ['echo.js', 'date.js', 'uname.js', 'uptime.js', 'touch.js', 'mkdir.js', 'rm.js', 'cp.js', 'mv.js', 'find.js', 'nbasic.js', 'neofetch.js', 'log.js', 'puter.js', 'help.js', 'pwd.js', 'whoami.js', 'clear.js', 'cd.js', 'ls.js', 'cat.js', 'head.js', 'tail.js', 'journal.js', 'exit.js', 'su.js'];
             const testFiles = ['testprog.js'];
             
             let loaded = 0;
@@ -73,7 +73,7 @@ console.log('System ready.');`);
             
             // Load coreutils commands
             for (const filename of commandFiles) {
-                const result = await this.loadFileWithUpdate(`../bin/coreutils/${filename}`, `/bin/coreutils/${filename}`);
+                const result = await this.loadFileWithUpdate(`../pkgs/coreutils/${filename}`, `/bin/coreutils/${filename}`);
                 if (result.loaded) loaded++;
                 if (result.updated) {
                     updated++;
@@ -83,7 +83,7 @@ console.log('System ready.');`);
             
             // Load test commands  
             for (const filename of testFiles) {
-                const result = await this.loadFileWithUpdate(`../bin/tests/${filename}`, `/bin/tests/${filename}`);
+                const result = await this.loadFileWithUpdate(`../tests/${filename}`, `/bin/tests/${filename}`);
                 if (result.loaded) loaded++;
                 if (result.updated) {
                     updated++;
@@ -202,21 +202,7 @@ console.log('System ready.');`);
     getAvailableCommands() {
         const commands = [];
         
-        // Add built-in commands
-        commands.push({ name: 'help', description: 'Show available commands', icon: 'fas fa-question-circle' });
-        commands.push({ name: 'cd', description: 'Change directory', icon: 'fas fa-folder-open' });
-        commands.push({ name: 'pwd', description: 'Show current directory', icon: 'fas fa-folder' });
-        commands.push({ name: 'whoami', description: 'Show current user', icon: 'fas fa-user' });
-        commands.push({ name: 'clear', description: 'Clear terminal screen', icon: 'fas fa-broom' });
-        commands.push({ name: 'ls', description: 'List files and directories', icon: 'fas fa-list' });
-        commands.push({ name: 'cat', description: 'Display file content', icon: 'fas fa-file-alt' });
-        commands.push({ name: 'tail', description: 'Display last lines of file', icon: 'fas fa-file-import' });
-        commands.push({ name: 'head', description: 'Display first lines of file', icon: 'fas fa-file-export' });
-        commands.push({ name: 'journal', description: 'View system journal', icon: 'fas fa-book' });
-        commands.push({ name: 'su', description: 'Switch to root user', icon: 'fas fa-key' });
-        commands.push({ name: 'exit', description: 'Exit terminal session', icon: 'fas fa-sign-out-alt' });
-        
-        // Scan /prog directory for external commands
+        // Scan filesystem for all command files (now all commands are external)
         for (const [path, entry] of this.fileSystem.entries()) {
             if ((path.startsWith('/bin/coreutils/') || path.startsWith('/tests/')) && path.endsWith('.js') && entry.type === 'file') {
                 let commandName, directory;
@@ -311,372 +297,11 @@ console.log('System ready.');`);
         const [command, ...args] = commandLine.trim().split(/\s+/);
         
         try {
-            // Built-in commands
-            switch (command) {
-                case 'help':
-                    this.handleHelp();
-                    break;
-                    
-                case 'pwd':
-                    this.stdout(this.currentDir);
-                    break;
-                    
-                case 'whoami':
-                    this.stdout(this.currentUser);
-                    break;
-                    
-                case 'clear':
-                    document.getElementById('terminal-output').innerHTML = '';
-                    break;
-                    
-                case 'cd':
-                    this.handleCd(args);
-                    break;
-                    
-                case 'ls':
-                    this.handleLs(args);
-                    break;
-                    
-                case 'cat':
-                    this.handleCat(args);
-                    break;
-                    
-                case 'head':
-                    this.handleHead(args);
-                    break;
-                    
-                case 'tail':
-                    this.handleTail(args);
-                    break;
-                    
-                case 'journal':
-                    this.handleJournal(args);
-                    break;
-                    
-                case 'exit':
-                    this.handleExit(args);
-                    break;
-                    
-                default:
-                    // Try to execute external command
-                    await this.executeExternalCommand(command, args);
-                    break;
-            }
+            // All commands are now external - execute from files
+            await this.executeExternalCommand(command, args);
         } catch (error) {
             this.stdout(`Error: ${error.message}`, 'error');
         }
-    }
-
-    handleHelp() {
-        this.stdout('Available commands:', 'info');
-        this.stdout('');
-        
-        const commands = this.getAvailableCommands();
-        for (const cmd of commands) {
-            this.stdout(`  ${cmd.name.padEnd(12)} - ${cmd.description}`);
-        }
-        
-        this.stdout('');
-        this.stdout('Use [command] -h or --help for command-specific help', 'info');
-    }
-
-    handleCd(args) {
-        if (args.length === 0) {
-            this.currentDir = '/home/user';
-            return;
-        }
-
-        const target = args[0];
-        const newPath = this.resolvePath(target);
-        
-        if (this.fileSystem.has(newPath) && this.fileSystem.get(newPath).type === 'directory') {
-            this.currentDir = newPath;
-        } else {
-            this.stdout(`cd: ${target}: No such file or directory`, 'error');
-        }
-    }
-
-    handleLs(args) {
-        const showAll = args.includes('-a');
-        const longFormat = args.includes('-l');
-        
-        const files = [];
-        for (const [path, entry] of this.fileSystem.entries()) {
-            if (path.startsWith(this.currentDir + '/') && !path.substring(this.currentDir.length + 1).includes('/')) {
-                const name = path.substring(this.currentDir.length + 1);
-                if (showAll || !name.startsWith('.')) {
-                    files.push({ name, entry });
-                }
-            }
-        }
-        
-        files.sort((a, b) => a.name.localeCompare(b.name));
-        
-        if (longFormat) {
-            for (const { name, entry } of files) {
-                const type = entry.type === 'directory' ? 'd' : '-';
-                const perms = entry.permissions || '644';
-                const size = entry.size || 0;
-                const date = entry.modified.toLocaleDateString();
-                this.stdout(`${type}${perms} ${entry.owner} ${size} ${date} ${name}`);
-            }
-        } else {
-            const names = files.map(f => f.name);
-            this.stdout(names.join('  '));
-        }
-    }
-
-    handleCat(args) {
-        if (args.length === 0) {
-            this.stdout('cat: missing file operand', 'error');
-            return;
-        }
-
-        for (const filename of args) {
-            const filepath = this.resolvePath(filename);
-            const entry = this.fileSystem.get(filepath);
-            
-            if (!entry) {
-                this.stdout(`cat: ${filename}: No such file or directory`, 'error');
-                continue;
-            }
-            
-            if (entry.type !== 'file') {
-                this.stdout(`cat: ${filename}: Is a directory`, 'error');
-                continue;
-            }
-            
-            this.stdout(entry.content);
-        }
-    }
-
-    handleHead(args) {
-        const lines = 10; // default to 10 lines
-        let numLines = lines;
-        let files = args.slice();
-        
-        // Check for -n flag
-        const nIndex = args.findIndex(arg => arg === '-n');
-        if (nIndex !== -1 && nIndex + 1 < args.length) {
-            numLines = parseInt(args[nIndex + 1]);
-            files = args.filter((arg, index) => index !== nIndex && index !== nIndex + 1);
-        }
-        
-        // Check for -h/--help
-        if (args.includes('-h') || args.includes('--help')) {
-            this.stdout('Usage: head [OPTION]... [FILE]...');
-            this.stdout('Print the first 10 lines of each FILE to standard output.');
-            this.stdout('');
-            this.stdout('  -n NUM        print the first NUM lines instead of the first 10');
-            this.stdout('  -h, --help    display this help and exit');
-            return;
-        }
-
-        if (files.length === 0) {
-            this.stdout('head: missing file operand', 'error');
-            return;
-        }
-
-        for (const filename of files) {
-            const filepath = this.resolvePath(filename);
-            const entry = this.fileSystem.get(filepath);
-            
-            if (!entry) {
-                this.stdout(`head: ${filename}: No such file or directory`, 'error');
-                continue;
-            }
-            
-            if (entry.type !== 'file') {
-                this.stdout(`head: ${filename}: Is a directory`, 'error');
-                continue;
-            }
-            
-            const contentLines = entry.content.split('\n');
-            const outputLines = contentLines.slice(0, numLines);
-            
-            if (files.length > 1) {
-                this.stdout(`==> ${filename} <==`);
-            }
-            
-            outputLines.forEach(line => this.stdout(line));
-            
-            if (files.length > 1) {
-                this.stdout('');
-            }
-        }
-    }
-
-    handleTail(args) {
-        const lines = 10; // default to 10 lines
-        let numLines = lines;
-        let files = args.slice();
-        
-        // Check for -n flag
-        const nIndex = args.findIndex(arg => arg === '-n');
-        if (nIndex !== -1 && nIndex + 1 < args.length) {
-            numLines = parseInt(args[nIndex + 1]);
-            files = args.filter((arg, index) => index !== nIndex && index !== nIndex + 1);
-        }
-        
-        // Check for -h/--help
-        if (args.includes('-h') || args.includes('--help')) {
-            this.stdout('Usage: tail [OPTION]... [FILE]...');
-            this.stdout('Print the last 10 lines of each FILE to standard output.');
-            this.stdout('');
-            this.stdout('  -n NUM        print the last NUM lines instead of the last 10');
-            this.stdout('  -h, --help    display this help and exit');
-            return;
-        }
-
-        if (files.length === 0) {
-            this.stdout('tail: missing file operand', 'error');
-            return;
-        }
-
-        for (const filename of files) {
-            const filepath = this.resolvePath(filename);
-            const entry = this.fileSystem.get(filepath);
-            
-            if (!entry) {
-                this.stdout(`tail: ${filename}: No such file or directory`, 'error');
-                continue;
-            }
-            
-            if (entry.type !== 'file') {
-                this.stdout(`tail: ${filename}: Is a directory`, 'error');
-                continue;
-            }
-            
-            const contentLines = entry.content.split('\n');
-            const outputLines = contentLines.slice(-numLines);
-            
-            if (files.length > 1) {
-                this.stdout(`==> ${filename} <==`);
-            }
-            
-            outputLines.forEach(line => this.stdout(line));
-            
-            if (files.length > 1) {
-                this.stdout('');
-            }
-        }
-    }
-
-    handleJournal(args) {
-        // Help option
-        if (args.includes('-h') || args.includes('--help')) {
-            this.stdout('Usage: journal [OPTION]...');
-            this.stdout('View system journal entries (similar to journalctl).');
-            this.stdout('');
-            this.stdout('  -n, --lines=NUM       show NUM most recent entries (default: 20)');
-            this.stdout('  -f, --follow          follow journal entries (not implemented in web version)');
-            this.stdout('  -u, --unit=UNIT       show entries for specific unit');
-            this.stdout('      --since=TIME      show entries since specified time');
-            this.stdout('  -p, --priority=LEVEL  show entries with priority LEVEL and above');
-            this.stdout('  -x, --explanations    add explanation texts to entries');
-            this.stdout('  -h, --help            display this help and exit');
-            return;
-        }
-
-        // Parse arguments
-        let numLines = 20;
-        let unit = null;
-        let priority = null;
-        let since = null;
-        let explanations = false;
-
-        for (let i = 0; i < args.length; i++) {
-            if (args[i] === '-n' && i + 1 < args.length) {
-                numLines = parseInt(args[++i]) || 20;
-            } else if (args[i].startsWith('--lines=')) {
-                numLines = parseInt(args[i].split('=')[1]) || 20;
-            } else if (args[i] === '-u' && i + 1 < args.length) {
-                unit = args[++i];
-            } else if (args[i].startsWith('--unit=')) {
-                unit = args[i].split('=')[1];
-            } else if (args[i] === '-p' && i + 1 < args.length) {
-                priority = args[++i];
-            } else if (args[i].startsWith('--priority=')) {
-                priority = args[i].split('=')[1];
-            } else if (args[i].startsWith('--since=')) {
-                since = args[i].split('=')[1];
-            } else if (args[i] === '-x' || args[i] === '--explanations') {
-                explanations = true;
-            }
-        }
-
-        // Get or create journal entries
-        let journalEntries = this.getJournalEntries();
-
-        // Filter by unit if specified
-        if (unit) {
-            journalEntries = journalEntries.filter(entry => entry.unit === unit);
-        }
-
-        // Filter by priority if specified
-        if (priority) {
-            const priorityLevels = { 'emerg': 0, 'alert': 1, 'crit': 2, 'err': 3, 'warning': 4, 'notice': 5, 'info': 6, 'debug': 7 };
-            const targetLevel = priorityLevels[priority.toLowerCase()] || 6;
-            journalEntries = journalEntries.filter(entry => entry.priority <= targetLevel);
-        }
-
-        // Filter by since time if specified
-        if (since) {
-            const sinceTime = new Date(since);
-            if (!isNaN(sinceTime)) {
-                journalEntries = journalEntries.filter(entry => new Date(entry.timestamp) >= sinceTime);
-            }
-        }
-
-        // Get the most recent entries
-        const recentEntries = journalEntries.slice(-numLines);
-
-        if (recentEntries.length === 0) {
-            this.stdout('-- No journal entries found --', 'info');
-            return;
-        }
-
-        // Display entries
-        recentEntries.forEach(entry => {
-            const timestamp = new Date(entry.timestamp).toISOString().replace('T', ' ').substring(0, 19);
-            const priority = entry.priorityName || 'info';
-            const unit = entry.unit || 'system';
-            const message = entry.message || '';
-
-            this.stdout(`${timestamp} ${unit}[${entry.pid}]: ${message}`, 
-                       entry.priority <= 3 ? 'error' : entry.priority <= 4 ? 'warning' : 'normal');
-
-            if (explanations && entry.explanation) {
-                this.stdout(`-- ${entry.explanation}`, 'info');
-            }
-        });
-
-        if (recentEntries.length === numLines) {
-            this.stdout('', '');
-            this.stdout(`-- Showing ${numLines} most recent entries. Use -n to show more --`, 'info');
-        }
-    }
-
-    handleExit(args) {
-        if (args.includes('-h') || args.includes('--help')) {
-            this.stdout('Usage: exit [n]');
-            this.stdout('Exit the shell.');
-            this.stdout('');
-            this.stdout('  n             exit with status n (default: 0)');
-            return;
-        }
-
-        this.stdout('Goodbye!', 'info');
-        
-        // Add journal entry for logout
-        this.addJournalEntry('login', 'User session ended', 6, 'info', 'User logged out from terminal session');
-        
-        // In a web browser, we can't actually exit the application,
-        // but we can simulate it by clearing the terminal and showing a goodbye message
-        setTimeout(() => {
-            document.getElementById('terminal-output').innerHTML = '';
-            this.stdout('Terminal session ended. Refresh the page to restart.', 'warning');
-        }, 1000);
     }
 
     getJournalEntries() {

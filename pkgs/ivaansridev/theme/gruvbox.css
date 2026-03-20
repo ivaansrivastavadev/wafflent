@@ -1,0 +1,46 @@
+body {
+    background-color: #282828;
+    color: #ebdbb2;
+    font-family: 'Fira Code', 'Monaco', 'Menlo', monospace;
+}
+
+.terminal {
+    background-color: #1d2021;
+    border: 2px solid #504945;
+}
+
+.prompt {
+    color: #83a598;
+}
+
+.prompt-user {
+    color: #b8bb26;
+}
+
+.prompt-path {
+    color: #fabd2f;
+}
+
+.command {
+    color: #ebdbb2;
+}
+
+.output {
+    color: #d5c4a1;
+}
+
+.error {
+    color: #fb4934;
+}
+
+.warning {
+    color: #fe8019;
+}
+
+.info {
+    color: #83a598;
+}
+
+.success {
+    color: #b8bb26;
+}
