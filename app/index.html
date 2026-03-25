@@ -104,6 +104,13 @@
             font-family: 'Courier New', 'Monaco', monospace;
         }
 
+        /* Fix excessive vertical spacing in terminal output */
+        .terminal-output > div {
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+        }
+
         .prompt {
             color: var(--green-bright);
         }
@@ -207,7 +214,7 @@
             background: var(--bg-light);
             border: 1px solid var(--yellow);
             border-radius: 4px;
-            max-height: 200px;
+            /* Dynamic height set by JavaScript - no max-height */
             overflow-y: auto;
             z-index: 1000;
             min-width: 300px;
@@ -218,12 +225,13 @@
         }
 
         .autocomplete-item {
-            padding: 0.5rem;
+            padding: 0.25rem 0.5rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 0.5rem;
             border-bottom: 1px solid var(--bg-dark);
+            min-height: 28px;
         }
 
         .autocomplete-item:last-child {
@@ -684,8 +692,17 @@
             const spaceAbove = inputRect.top - terminalRect.top;
             const spaceBelow = terminalRect.bottom - inputRect.bottom;
             
-            // Estimate dropdown height (40px per item + padding)
-            const estimatedHeight = Math.min(suggestions.length * 40 + 10, 200);
+            // Calculate dynamic height for compact autocomplete (30px per item, max 4 visible)
+            const maxVisibleItems = 4;
+            const itemHeight = 30;
+            const actualItems = Math.min(suggestions.length, maxVisibleItems);
+            const dynamicHeight = actualItems * itemHeight;
+            
+            // Set the dropdown height dynamically
+            autocompleteDropdown.style.height = `${dynamicHeight}px`;
+            
+            // Use this height for positioning calculations
+            const estimatedHeight = dynamicHeight;
             
             // Position above if there's more space above or if there's not enough space below
             if (spaceAbove > estimatedHeight || spaceBelow < estimatedHeight) {
