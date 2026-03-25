@@ -1,7 +1,11 @@
-// Wafflent Terminal Processor
-// Handles command execution and file system operations
-
+/**
+ * Wafflent Terminal Processor
+ * Handles command execution and file system operations
+ */
 class WafflentProcessor {
+    /**
+     * Initialize the processor with default settings
+     */
     constructor() {
         this.fileSystem = new Map();
         this.currentDir = '/usr';
@@ -9,13 +13,52 @@ class WafflentProcessor {
         this.isRoot = false;
         this.initialized = false;
         
-        // Initialize file system synchronously first
-        this.createBasicFileSystem();
+        // Initialize storage service
+        this.storage = new WafflentStorage();
         
-        // Load external commands asynchronously
+        // Initialize everything asynchronously
         this.initializeAsync();
     }
 
+    /**
+     * Initialize all system components asynchronously
+     * Sets up storage, file system, and external commands
+     */
+    async initializeAsync() {
+        try {
+            // Initialize storage system first
+            await this.storage.init();
+            
+            // Create basic file system
+            this.createBasicFileSystem();
+            
+            // Load existing files from storage
+            await this.loadFileSystemFromStorage();
+            
+            // Load external commands
+            await this.loadExternalCommands();
+            
+            this.initialized = true;
+        } catch (error) {
+            console.warn('Failed to initialize system:', error);
+            // Create basic file system even if storage fails
+            this.createBasicFileSystem();
+            this.initialized = true;
+        }
+    }
+
+    /**
+     * Initialize file system with basic structure and load from storage
+     */
+    async initializeFileSystemAsync() {
+        // Create basic file system and load from storage
+        this.createBasicFileSystem();
+        await this.loadFileSystemFromStorage();
+    }
+
+    /**
+     * Create the basic file system structure and default files
+     */
     createBasicFileSystem() {
         // Create base directories
         this.createDirectory('/');
@@ -27,12 +70,10 @@ class WafflentProcessor {
         this.createDirectory('/pkgs/coreutils');
         this.createDirectory('/pkgs/tests');
         this.createDirectory('/usr');
-        this.createDirectory('/home');
         this.createDirectory('/tmp');
         this.createDirectory('/lib');
 
-        // Load filesystem state from localStorage if available
-        this.loadFileSystemFromStorage();
+        // Create system files
         this.createFile('/sys/core/init.js', `// Wafflent System Init (PID 1)
 // fas fa-play-circle
 
@@ -51,43 +92,30 @@ console.log('System ready.');`);
                              Unix-like Terminal System`);
     }
 
-    async initializeAsync() {
-        try {
-            await this.loadExternalCommands();
-            this.initialized = true;
-        } catch (error) {
-            console.warn('Failed to initialize external commands:', error);
-            this.initialized = true; // Continue anyway with just built-in commands
-        }
-    }
-
+    /**
+     * Load external command files from the packages directory
+     * Handles caching and update detection
+     */
     async loadExternalCommands() {
-        // Load external commands from actual files with localStorage persistence and update detection
+        // Load external commands from actual files with storage persistence and update detection
         try {
             const commandFiles = ['echo.js', 'date.js', 'uname.js', 'uptime.js', 'touch.js', 'mkdir.js', 'rm.js', 'cp.js', 'mv.js', 'find.js', 'nbasic.js', 'neofetch.js', 'log.js', 'puter.js', 'help.js', 'pwd.js', 'whoami.js', 'clear.js', 'cd.js', 'ls.js', 'cat.js', 'head.js', 'tail.js', 'journal.js', 'exit.js', 'su.js'];
-            const testFiles = ['testprog.js'];
             
             let loaded = 0;
+            let fromCache = 0;
             let updated = 0;
             const updates = [];
             
             // Load coreutils commands
             for (const filename of commandFiles) {
                 const result = await this.loadFileWithUpdate(`../pkgs/coreutils/${filename}`, `/pkgs/coreutils/${filename}`);
-                if (result.loaded) loaded++;
-                if (result.updated) {
-                    updated++;
-                    updates.push(`/pkgs/coreutils/${filename}`);
-                }
-            }
-            
-            // Load test commands  
-            for (const filename of testFiles) {
-                const result = await this.loadFileWithUpdate(`../tests/${filename}`, `/pkgs/tests/${filename}`);
-                if (result.loaded) loaded++;
-                if (result.updated) {
-                    updated++;
-                    updates.push(`/pkgs/tests/${filename}`);
+                if (result.loaded) {
+                    loaded++;
+                    if (result.fromCache) fromCache++;
+                    if (result.updated) {
+                        updated++;
+                        updates.push(`/pkgs/coreutils/${filename}`);
+                    }
                 }
             }
             
@@ -96,87 +124,142 @@ console.log('System ready.');`);
                 this.showUpdatePrompt(updates);
             }
             
-            console.log(`Loaded ${loaded} external commands and tests (${updated} updates available)`);
+            console.log(`Loaded ${loaded} external commands (${fromCache} from cache, ${updated} updates available)`);
         } catch (error) {
             console.warn('Could not load external commands:', error);
         }
     }
     
+    /**
+     * Load a file with update detection and caching
+     * @param {string} fetchPath - Path to fetch the file from
+     * @param {string} storagePath - Storage path for caching
+     * @returns {Promise<Object>} Object with load status, cache info, and update status
+     */
     async loadFileWithUpdate(fetchPath, storagePath) {
         try {
-            const response = await fetch(fetchPath);
-            if (!response.ok) {
-                // Try to load from localStorage if fetch fails
-                const stored = this.loadFromLocalStorage(storagePath);
-                if (stored) {
-                    this.createFile(storagePath, stored);
-                    return { loaded: true, updated: false, fromCache: true };
-                }
-                return { loaded: false, updated: false };
+            // Ensure storage is initialized
+            if (!this.storage.isReady) {
+                await this.storage.init();
             }
             
-            const content = await response.text();
-            const storedContent = this.loadFromLocalStorage(storagePath);
+            // First check if we have a cached version
+            const storedContent = await this.storage.loadFile(storagePath);
             
-            // Check if content has changed
-            const hasUpdate = storedContent && storedContent !== content;
-            
-            // Always create/update the file in filesystem
-            this.createFile(storagePath, content);
-            
-            // Store in localStorage for future use
-            this.saveToLocalStorage(storagePath, content);
-            
-            return { 
-                loaded: true, 
-                updated: hasUpdate,
-                fromCache: false,
-                hasStored: !!storedContent
-            };
+            // If we have stored content, try to fetch for updates but don't fail if it doesn't work
+            if (storedContent) {
+                try {
+                    const response = await fetch(fetchPath);
+                    if (response.ok) {
+                        const content = await response.text();
+                        
+                        // Check if content has changed
+                        const hasUpdate = storedContent !== content;
+                        
+                        if (hasUpdate) {
+                            // Update with new content
+                            this.createFile(storagePath, content);
+                            await this.storage.saveFile(storagePath, content);
+                            return { 
+                                loaded: true, 
+                                updated: true,
+                                fromCache: false
+                            };
+                        } else {
+                            // Use cached content, no update needed
+                            this.createFile(storagePath, storedContent);
+                            return { 
+                                loaded: true, 
+                                updated: false,
+                                fromCache: true
+                            };
+                        }
+                    } else {
+                        // Fetch failed, use cached content
+                        this.createFile(storagePath, storedContent);
+                        return { loaded: true, updated: false, fromCache: true };
+                    }
+                } catch (fetchError) {
+                    // Network error, use cached content
+                    this.createFile(storagePath, storedContent);
+                    return { loaded: true, updated: false, fromCache: true };
+                }
+            } else {
+                // No cached version, try to fetch
+                const response = await fetch(fetchPath);
+                if (!response.ok) {
+                    return { loaded: false, updated: false };
+                }
+                
+                const content = await response.text();
+                
+                // Save to filesystem and storage
+                this.createFile(storagePath, content);
+                await this.storage.saveFile(storagePath, content);
+                
+                return { 
+                    loaded: true, 
+                    updated: false, // It's new, not an update
+                    fromCache: false
+                };
+            }
             
         } catch (error) {
             console.warn(`Failed to load ${fetchPath}:`, error);
-            
-            // Try to load from localStorage as fallback
-            const stored = this.loadFromLocalStorage(storagePath);
-            if (stored) {
-                this.createFile(storagePath, stored);
-                return { loaded: true, updated: false, fromCache: true };
-            }
-            
             return { loaded: false, updated: false };
         }
     }
     
-    loadFromLocalStorage(path) {
+    /**
+     * Load the file system from IndexedDB storage
+     * Only loads user files, preserving system files
+     */
+    async loadFileSystemFromStorage() {
         try {
-            const data = JSON.parse(localStorage.getItem('wafflent_data') || '{}');
-            return data[path] || null;
+            // Ensure storage is ready
+            if (!this.storage.isReady) {
+                await this.storage.init();
+            }
+            
+            // Load files from storage
+            const fileMap = await this.storage.loadAllFiles();
+            
+            // Apply user files to the filesystem (skip system files)
+            for (const [path, entry] of fileMap.entries()) {
+                if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
+                    this.fileSystem.set(path, entry);
+                }
+            }
+            
+            if (fileMap.size > 0) {
+                console.log(`Restored ${fileMap.size} filesystem entries from storage`);
+            }
         } catch (error) {
-            console.warn('Failed to load from localStorage:', error);
-            return null;
+            console.warn('Failed to load filesystem from storage:', error);
         }
     }
     
-    saveToLocalStorage(path, content) {
+    async saveFileSystemToStorage() {
         try {
-            // Load existing data
-            const data = JSON.parse(localStorage.getItem('wafflent_data') || '{}');
+            // Ensure storage is ready
+            if (!this.storage.isReady) {
+                await this.storage.init();
+            }
             
-            // Update the specific file
-            data[path] = content;
+            // Save only user files (not system files)
+            const promises = [];
+            for (const [path, entry] of this.fileSystem.entries()) {
+                if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
+                    if (entry.type === 'file') {
+                        promises.push(this.storage.saveFile(path, entry.content || '', entry.type));
+                    }
+                }
+            }
             
-            // Save back to localStorage
-            localStorage.setItem('wafflent_data', JSON.stringify(data));
-            
-            // Also update metadata separately for compatibility
-            const metaKey = `wafflent_meta_${path}`;
-            localStorage.setItem(metaKey, JSON.stringify({
-                lastUpdated: new Date().toISOString(),
-                size: content ? content.length : 0
-            }));
+            // Save all files concurrently
+            await Promise.all(promises);
         } catch (error) {
-            console.warn('Failed to save to localStorage:', error);
+            console.warn('Failed to save filesystem to storage:', error);
         }
     }
     
@@ -265,6 +348,27 @@ console.log('System ready.');`);
         });
     }
 
+    async createUserFile(path, content = '') {
+        this.fileSystem.set(path, {
+            type: 'file',
+            content: content,
+            created: new Date(),
+            modified: new Date(),
+            permissions: '644',
+            owner: this.currentUser,
+            size: content.length
+        });
+        
+        // Save to storage if it's a user file (not system file)
+        if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
+            try {
+                await this.storage.saveFile(path, content, 'file');
+            } catch (error) {
+                console.warn('Failed to persist file to storage:', error);
+            }
+        }
+    }
+
     // Output function for commands to use
     stdout(text, type = 'normal') {
         const outputElement = document.getElementById('terminal-output');
@@ -292,7 +396,10 @@ console.log('System ready.');`);
         outputElement.scrollTop = outputElement.scrollHeight;
     }
 
-    // Main command execution method
+    /**
+     * Main command execution method
+     * @param {string} commandLine - Complete command line input
+     */
     async executeCommand(commandLine) {
         const [command, ...args] = commandLine.trim().split(/\s+/);
         
@@ -304,21 +411,34 @@ console.log('System ready.');`);
         }
     }
 
-    getJournalEntries() {
-        // Get existing journal or create default entries
-        const stored = localStorage.getItem('wafflent_journal');
-        if (stored) {
-            try {
-                return JSON.parse(stored);
-            } catch (e) {
-                // If corrupted, reset
+    async getJournalEntries() {
+        try {
+            // Get entries from storage
+            const entries = await this.storage.loadJournalEntries(1000);
+            
+            if (entries && entries.length > 0) {
+                return entries;
             }
+
+            // Create default journal entries for system initialization
+            const installTime = await this.storage.loadSystemData('install_time') || Date.now();
+            const currentTime = Date.now();
+
+            const defaultEntries = await this.createDefaultJournalEntries(installTime, currentTime);
+            
+            // Save default entries to storage
+            for (const entry of defaultEntries) {
+                await this.storage.addJournalEntry(entry);
+            }
+            
+            return defaultEntries;
+        } catch (error) {
+            console.warn('Failed to load journal entries:', error);
+            return [];
         }
+    }
 
-        // Create default journal entries for system initialization
-        const installTime = localStorage.getItem('wafflent_install_time') || Date.now();
-        const currentTime = Date.now();
-
+    async createDefaultJournalEntries(installTime, currentTime) {
         const defaultEntries = [
             {
                 timestamp: new Date(parseInt(installTime)).toISOString(),
@@ -354,7 +474,7 @@ console.log('System ready.');`);
                 priority: 6,
                 priorityName: 'info',
                 message: 'Virtual filesystem mounted successfully',
-                explanation: 'Browser localStorage-based filesystem initialized'
+                explanation: 'Browser IndexedDB-based filesystem initialized'
             },
             {
                 timestamp: new Date(parseInt(installTime) + 4000).toISOString(),
@@ -389,13 +509,10 @@ console.log('System ready.');`);
             });
         }
 
-        // Save default entries
-        localStorage.setItem('wafflent_journal', JSON.stringify(defaultEntries));
         return defaultEntries;
     }
 
-    addJournalEntry(unit, message, priority = 6, priorityName = 'info', explanation = null) {
-        const entries = this.getJournalEntries();
+    async addJournalEntry(unit, message, priority = 6, priorityName = 'info', explanation = null) {
         const newEntry = {
             timestamp: new Date().toISOString(),
             unit: unit,
@@ -406,14 +523,11 @@ console.log('System ready.');`);
             explanation: explanation
         };
         
-        entries.push(newEntry);
-        
-        // Keep only last 1000 entries to avoid storage bloat
-        if (entries.length > 1000) {
-            entries.splice(0, entries.length - 1000);
+        try {
+            await this.storage.addJournalEntry(newEntry);
+        } catch (error) {
+            console.warn('Failed to add journal entry to storage:', error);
         }
-        
-        localStorage.setItem('wafflent_journal', JSON.stringify(entries));
     }
 
     // Helper methods for external commands
@@ -421,10 +535,46 @@ console.log('System ready.');`);
         return this.fileSystem.has(path);
     }
 
-    saveFileSystem() {
-        // Save user files to localStorage for persistence
-        this.saveFileSystemToStorage();
+    async saveFileSystem() {
+        // Save user files to storage for persistence
+        await this.saveFileSystemToStorage();
         return true;
+    }
+
+    // Async file operations for commands
+    async deleteFile(path) {
+        const resolved = this.resolvePath(path);
+        this.fileSystem.delete(resolved);
+        
+        // Remove from storage if it's a user file
+        if (!resolved.startsWith('/sys/') && !resolved.startsWith('/pkgs/') && !resolved.startsWith('/lib/')) {
+            try {
+                await this.storage.deleteFile(resolved);
+            } catch (error) {
+                console.warn('Failed to delete file from storage:', error);
+            }
+        }
+        
+        await this.saveFileSystem();
+    }
+
+    async updateFile(path, content) {
+        const resolved = this.resolvePath(path);
+        const existing = this.fileSystem.get(resolved);
+        if (existing) {
+            existing.content = content;
+            existing.modified = new Date();
+            existing.size = content.length;
+            
+            // Save to storage if it's a user file
+            if (!resolved.startsWith('/sys/') && !resolved.startsWith('/pkgs/') && !resolved.startsWith('/lib/')) {
+                try {
+                    await this.storage.saveFile(resolved, content, existing.type);
+                } catch (error) {
+                    console.warn('Failed to update file in storage:', error);
+                }
+            }
+        }
     }
 
     getFileContent(path) {
@@ -529,76 +679,5 @@ console.log('System ready.');`);
         }
         
         return this.currentDir + '/' + path;
-    }
-    
-    loadFileSystemFromStorage() {
-        try {
-            // Try to load from new wafflent_data structure first
-            const wafflentData = JSON.parse(localStorage.getItem('wafflent_data') || '{}');
-            
-            // Load user files from the new structure
-            for (const [path, content] of Object.entries(wafflentData)) {
-                if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
-                    // Only user files (not system files)
-                    if (content === null) {
-                        // This is a .folderkeeper entry for empty directories
-                        this.fileSystem.set(path, { type: 'file', content: '' });
-                    } else if (typeof content === 'string') {
-                        this.fileSystem.set(path, { type: 'file', content });
-                    }
-                }
-            }
-            
-            // Fallback: also try to load from legacy wafflent_filesystem 
-            const fsData = localStorage.getItem('wafflent_filesystem');
-            if (fsData) {
-                const parsed = JSON.parse(fsData);
-                // Only load user files, not system files - those should be loaded fresh
-                for (const [path, entry] of Object.entries(parsed)) {
-                    if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
-                        if (!this.fileSystem.has(path)) { // Don't overwrite data from new structure
-                            this.fileSystem.set(path, entry);
-                        }
-                    }
-                }
-            }
-            
-            const totalEntries = Object.keys(wafflentData).length + (fsData ? Object.keys(JSON.parse(fsData)).length : 0);
-            if (totalEntries > 0) {
-                console.log(`Restored ${this.fileSystem.size} filesystem entries from localStorage`);
-            }
-        } catch (error) {
-            console.warn('Failed to load filesystem from storage:', error);
-        }
-    }
-    
-    saveFileSystemToStorage() {
-        try {
-            // Load existing wafflent_data
-            const wafflentData = JSON.parse(localStorage.getItem('wafflent_data') || '{}');
-            
-            // Add user files to wafflent_data (preserve existing system files)
-            for (const [path, entry] of this.fileSystem.entries()) {
-                if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
-                    if (entry.type === 'file') {
-                        wafflentData[path] = entry.content || '';
-                    }
-                }
-            }
-            
-            // Save the updated wafflent_data
-            localStorage.setItem('wafflent_data', JSON.stringify(wafflentData));
-            
-            // Keep legacy wafflent_filesystem for backward compatibility
-            const userFiles = {};
-            for (const [path, entry] of this.fileSystem.entries()) {
-                if (!path.startsWith('/sys/') && !path.startsWith('/pkgs/') && !path.startsWith('/lib/')) {
-                    userFiles[path] = entry;
-                }
-            }
-            localStorage.setItem('wafflent_filesystem', JSON.stringify(userFiles));
-        } catch (error) {
-            console.warn('Failed to save filesystem to storage:', error);
-        }
     }
 }

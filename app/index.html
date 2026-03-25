@@ -214,13 +214,13 @@
             background: var(--bg-light);
             border: 1px solid var(--yellow);
             border-radius: 4px;
-            /* Dynamic height set by JavaScript - no max-height */
+            /* Dynamic height and width set by JavaScript */
             overflow-y: auto;
             z-index: 1000;
-            min-width: 300px;
+            min-width: 200px;
+            max-width: 600px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            left: 0;
-            right: 0;
+            white-space: nowrap;
             /* Position will be set dynamically above or below */
         }
 
@@ -422,6 +422,7 @@
         </div>
     </div>
 
+    <script src="storage.js"></script>
     <script src="processor.js"></script>
     <script>
         // System state
@@ -459,15 +460,28 @@
         }
 
         // System initialization
-        function checkSystemInstallation() {
-            const installed = localStorage.getItem('wafflent_system_installed');
-            const rootHash = localStorage.getItem('wafflent_root_hash');
-            
-            if (installed === 'true' && rootHash) {
-                systemInstalled = true;
-                rootPasswordHash = rootHash;
-                showMainInterface();
-            } else {
+        async function checkSystemInstallation() {
+            try {
+                // Initialize storage to check for existing installation
+                const storage = new WafflentStorage();
+                await storage.init();
+                
+                // Check if system is already installed
+                const isInstalled = await storage.loadSystemData('system_installed');
+                const rootHash = await storage.loadSystemData('root_hash');
+                
+                if (isInstalled && rootHash) {
+                    // System is already installed
+                    systemInstalled = true;
+                    rootPasswordHash = rootHash;
+                    showMainInterface();
+                } else {
+                    // System not installed, show installation screen
+                    showInstallScreen();
+                }
+            } catch (error) {
+                console.warn('Failed to check installation status:', error);
+                // If we can't check, assume not installed
                 showInstallScreen();
             }
         }
@@ -487,16 +501,7 @@
             // Initialize processor
             processor = new WafflentProcessor();
             
-            // External programs are now loaded dynamically by the processor
-            installExternalPrograms();
-            
             printWelcomeMessage();
-        }
-
-        // External programs are now loaded dynamically by the processor
-        function installExternalPrograms() {
-            // This function is now deprecated - programs are loaded dynamically
-            // from the /bin/coreutils/ directory by the processor
         }
 
         async function startInstallation() {
@@ -533,18 +538,28 @@
             installButton.disabled = true;
             installButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Installing...';
 
-            // Hash password
-            rootPasswordHash = await hashPassword(password);
-            
-            // Save system state
-            localStorage.setItem('wafflent_system_installed', 'true');
-            localStorage.setItem('wafflent_root_hash', rootPasswordHash);
-            localStorage.setItem('wafflent_install_time', Date.now().toString());
-            
-            systemInstalled = true;
-            setTimeout(() => {
-                showMainInterface();
-            }, 1000);
+            try {
+                // Hash password
+                rootPasswordHash = await hashPassword(password);
+                
+                // Initialize storage and save system state
+                const storage = new WafflentStorage();
+                await storage.init();
+                
+                await storage.saveSystemData('system_installed', true);
+                await storage.saveSystemData('root_hash', rootPasswordHash);
+                await storage.saveSystemData('install_time', Date.now());
+                
+                systemInstalled = true;
+                setTimeout(() => {
+                    showMainInterface();
+                }, 1000);
+            } catch (error) {
+                console.error('Installation failed:', error);
+                alert('Installation failed: ' + error.message);
+                installButton.disabled = false;
+                installButton.innerHTML = '<i class="fas fa-key"></i> Install System';
+            }
         });
 
         // Terminal functions
@@ -698,8 +713,22 @@
             const actualItems = Math.min(suggestions.length, maxVisibleItems);
             const dynamicHeight = actualItems * itemHeight;
             
-            // Set the dropdown height dynamically
+            // Calculate dynamic width based on content
+            autocompleteDropdown.style.visibility = 'hidden';
+            autocompleteDropdown.style.position = 'absolute';
+            autocompleteDropdown.style.width = 'auto';
+            autocompleteDropdown.classList.remove('hidden');
+            
+            // Measure the natural width of the content
+            const naturalWidth = autocompleteDropdown.scrollWidth;
+            const minWidth = 200;
+            const maxWidth = Math.min(600, terminalRect.width - 20); // Leave some margin
+            const optimalWidth = Math.max(minWidth, Math.min(naturalWidth + 20, maxWidth)); // Add padding
+            
+            // Set the calculated width and height
+            autocompleteDropdown.style.width = `${optimalWidth}px`;
             autocompleteDropdown.style.height = `${dynamicHeight}px`;
+            autocompleteDropdown.style.visibility = 'visible';
             
             // Use this height for positioning calculations
             const estimatedHeight = dynamicHeight;
