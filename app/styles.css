@@ -1,5 +1,5 @@
 /* ============================================================
-   WAFFLENT DESIGN SYSTEM — styles.css
+   Wafflent DESIGN SYSTEM — styles.css
    Language: Material You (Google) inspired, yellow-accented
    Default: Dark Mode
    File location: /styles.css (at root of project)
@@ -120,7 +120,6 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 
 a {
@@ -1773,7 +1772,7 @@ button, input, textarea, select {
 .wf-visible { display: block !important; }
 
 /* ─────────────────────────────────────────────
-   WAFFLENT SPECIFIC STYLES
+   Wafflent SPECIFIC STYLES
 ───────────────────────────────────────────── */
 
 /* Search input expand animation */
@@ -1811,7 +1810,7 @@ button, input, textarea, select {
 .memory-card:nth-child(4) { animation-delay: 0.2s; }
 
 /* ─────────────────────────────────────────────
-   WAFFLENT CHAT - NEW LAYOUT DESIGN
+   Wafflent CHAT - NEW LAYOUT DESIGN
    Keeping existing design system but new layout
 ───────────────────────────────────────────── */
 
@@ -4579,7 +4578,7 @@ body {
 }
 
 /* ─────────────────────────────────────────────
-   WAFFLENT CHAT INTERFACE
+   Wafflent CHAT INTERFACE
 ───────────────────────────────────────────── */
 
 /* Welcome Screen */
