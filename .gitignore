@@ -1,3 +1,5 @@
 localstore
 *test*
 .vscode
+node_modules
+package.json
