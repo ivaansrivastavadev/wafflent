@@ -1,0 +1,3 @@
+- [x] ~~Make the structure~~
+- [ ] Use font awsome
+- [x] ~~Make basic GUN Work~~
