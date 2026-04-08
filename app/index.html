@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" type="image/png" href="../..//assets/roundedlogo.gif">
-  <title>Wafflent</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="icon" type="image/png" href="/assets/roundedlogo.gif">
+  <title>Wafflent Chat</title>
+  <link rel="stylesheet" href="/app/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
@@ -60,7 +59,6 @@
       overflow-y: auto;
       padding: 16px;
       background: var(--bg-base);
-      border-radius: var(--r-lg);
       border: 1px solid var(--border);
       scroll-behavior: smooth;
       display: flex;
@@ -77,12 +75,17 @@
 
     /* ── Messages ── */
     .lcg-msg {
-      max-width: 82%;
-      padding: 10px 14px;
+      max-width: min(75%, 320px);
+      min-width: 120px;
+      width: fit-content;
+      padding: 8px 12px;
       border-radius: 18px;
       border: 1px solid transparent;
       word-break: break-word;
       animation: lcg-pop 150ms var(--ease-spring);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
     @keyframes lcg-pop {
       from { opacity: 0; transform: scale(0.94) translateY(4px); }
@@ -108,13 +111,46 @@
       text-align: center;
       margin: 0 auto;
       padding: 2px 8px;
+      flex-direction: row;
     }
+    
+    /* Message content styling */
+    .lcg-msg-content {
+      line-height: 1.4;
+    }
+    
+    /* Message metadata styling */
     .lcg-msg-meta {
       font-size: 10px;
-      margin-top: 4px;
       opacity: 0.65;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
     }
-    .lcg-msg.me .lcg-msg-meta { text-align: right; }
+    .lcg-msg.me .lcg-msg-meta { 
+      justify-content: flex-end;
+    }
+    .lcg-msg.them .lcg-msg-meta { 
+      justify-content: flex-start;
+    }
+    
+    /* Inline metadata for short messages */
+    .lcg-msg.inline-meta {
+      flex-direction: row;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .lcg-msg.inline-meta .lcg-msg-meta {
+      margin-top: 0;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    /* For ALL messages, content first, then metadata */
+    .lcg-msg.inline-meta.me,
+    .lcg-msg.inline-meta.them {
+      flex-direction: row;
+    }
 
     /* ── Image message ── */
     .lcg-msg-img {
@@ -231,30 +267,12 @@
 </head>
 <body>
 <div class="lcg-page">
-
-  <!-- ═══════════ NAVBAR ═══════════ -->
-  <nav class="wf-navbar">
-    <div class="wf-navbar-inner">
-      <a href="../../index.html" class="wf-navbar-brand">
-        <img src="../..//assets/roundedlogo.gif" alt="Wafflent" class="wf-navbar-favicon"
-             onerror="this.style.display='none'">
-        <span class="wf-navbar-name">Wafflent</span>
-      </a>
-      <nav class="wf-navbar-nav">
-        <a href="../tools.html"    class="wf-navbar-link">Tools</a>
-        <a href="../../index.html" class="wf-navbar-link">About</a>
-      </nav>
-    </div>
-  </nav>
-
   <div class="lcg-wrap">
 
     <!-- ═══════════ HEADER ═══════════ -->
     <div class="lcg-header">
       <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
         <h1 class="wf-h2" style="margin:0;">Wafflent</h1>
-        <span class="wf-chip wf-chip-accent">client-only</span>
-        <span class="wf-chip wf-chip-default"><i class="fas fa-image" style="margin-right:4px;"></i>Images &lt;2MB</span>
       </div>
       <!-- Device ID pill — click to rename -->
       <div class="lcg-device-pill" id="devicePill" title="Click to set your display name">
@@ -268,42 +286,48 @@
 
     <!-- ═══════════ ROOM CONFIG ═══════════ -->
     <div class="wf-card">
-      <div class="lcg-row">
-        <div class="lcg-grow wf-form-group">
-          <label class="wf-label">Chat ID <span style="opacity:0.5;">(share with your friend)</span></label>
-          <div class="wf-input-wrapper">
-            <span class="wf-input-icon-left"><i class="fas fa-door-open" style="font-size:12px;"></i></span>
-            <input id="room" class="wf-input has-icon-left" style="font-family:monospace;" placeholder="e.g. yellow-tiger-8291" />
+      <form id="roomConfigForm">
+        <div class="lcg-row">
+          <div class="lcg-grow wf-form-group">
+            <label class="wf-label">chat id <span style="opacity:0.5;">(share with your friend)</span></label>
+            <div class="wf-input-wrapper">
+              <span class="wf-input-icon-left"><i class="fas fa-door-open" style="font-size:12px;"></i></span>
+              <input id="room" class="wf-input has-icon-left" style="font-family:monospace;" placeholder="e.g. yellow-tiger-8291" />
+            </div>
+          </div>
+          <div class="lcg-grow wf-form-group">
+            <label class="wf-label">secret <span style="opacity:0.5;">(optional — E2E encrypts messages)</span></label>
+            <div class="wf-input-wrapper">
+              <span class="wf-input-icon-left"><i class="fas fa-key" style="font-size:12px;"></i></span>
+              <input id="secret" type="password" class="wf-input has-icon-left" placeholder="shared passphrase" />
+            </div>
           </div>
         </div>
-        <div class="lcg-grow wf-form-group">
-          <label class="wf-label">Secret <span style="opacity:0.5;">(optional — E2E encrypts messages)</span></label>
-          <div class="wf-input-wrapper">
-            <span class="wf-input-icon-left"><i class="fas fa-key" style="font-size:12px;"></i></span>
-            <input id="secret" type="password" class="wf-input has-icon-left" placeholder="shared passphrase" />
+
+        <!-- Encryption status hint -->
+        <div style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:var(--text-xs);">
+          <span id="encHint" style="color:var(--text-secondary);"></span>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:16px;">
+          <button id="join" type="button" class="wf-btn wf-btn-filled"><i class="fas fa-right-to-bracket"></i>&nbsp; Join / Create</button>
+          <button id="copyLink" type="button" class="wf-btn wf-btn-outlined"><i class="fas fa-link"></i>&nbsp; Copy Invite</button>
+          <button id="clearBtn" type="button" class="wf-btn wf-btn-ghost" style="color:var(--error);"><i class="fas fa-broom"></i>&nbsp; Clear Chat</button>
+          <div style="display:flex; align-items:center; gap:7px; margin-left:auto; font-size:var(--text-xs); color:var(--text-tertiary);">
+            <span class="lcg-peer-dot" id="peerDot"></span>
+            <span id="peerStatus">Connecting…</span>
           </div>
         </div>
-      </div>
-
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:16px;">
-        <button id="join"     class="wf-btn wf-btn-filled"><i class="fas fa-right-to-bracket"></i>&nbsp; Join / Create</button>
-        <button id="copyLink" class="wf-btn wf-btn-outlined"><i class="fas fa-link"></i>&nbsp; Copy Invite</button>
-        <button id="clearBtn" class="wf-btn wf-btn-ghost" style="color:var(--error);"><i class="fas fa-broom"></i>&nbsp; Clear Chat</button>
-        <div style="display:flex; align-items:center; gap:7px; margin-left:auto; font-size:var(--text-xs); color:var(--text-tertiary);">
-          <span class="lcg-peer-dot" id="peerDot"></span>
-          <span id="peerStatus">Connecting…</span>
-        </div>
-      </div>
-
-      <p class="wf-caption" style="margin-top:14px; line-height:1.6;">
-        No accounts. Messages sync via public <a href="https://github.com/amark/gun" target="_blank">GUN</a> relays.
-        Use a <strong style="color:var(--text-primary);">Secret</strong> shared out-of-band for end-to-end encryption.
-        Images up to 2MB supported. Made by Ivaan Srivastava.
-      </p>
+      </form>
     </div>
 
     <!-- ═══════════ CHAT ═══════════ -->
     <div class="wf-card" style="padding:0; overflow:hidden;">
+
+      <!-- Room status -->
+      <div style="padding:8px 16px; background:var(--bg-elevated); border-bottom:1px solid var(--border); font-size:var(--text-xs); color:var(--text-secondary);">
+        <span id="roomHint">No room joined</span>
+      </div>
 
       <!-- Chat area -->
       <div id="chat" class="lcg-chat"></div>
@@ -314,7 +338,7 @@
       <!-- Input -->
       <div style="padding:14px 16px; border-top:1px solid var(--border);">
         <div class="lcg-inputbar">
-          <textarea id="text" class="wf-input" placeholder="Type a message… (Enter to send, Shift+Enter for newline)"></textarea>
+          <textarea id="text" class="wf-input" placeholder="type a message…"></textarea>
           <div class="lcg-input-actions">
             <!-- Image attach -->
             <label class="lcg-attach" title="Send image (max 2MB)">
@@ -326,18 +350,8 @@
             </button>
           </div>
         </div>
-
-        <div style="display:flex; justify-content:space-between; margin-top:8px; flex-wrap:wrap; gap:4px;">
-          <span class="wf-caption" id="roomHint" style="color:var(--text-tertiary);"></span>
-          <span class="wf-caption" id="encHint"  style="color:var(--accent);"></span>
-        </div>
       </div>
     </div>
-
-    <p class="wf-caption" style="text-align:center; color:var(--text-tertiary);">
-      Share the invite link. Your friend opens it, enters the same Secret (if used), and you can chat.
-      Messages persist on community relays unless cleared.
-    </p>
 
   </div><!-- /wrap -->
 
@@ -363,6 +377,6 @@
 <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
-<script src="./script.js"></script>
+<script src="/app/script.js"></script>
 </body>
 </html>

@@ -1,15 +1,3 @@
-/* ══════════════════════════════════════════════════════════
-   Wafflent — chatgun.js
-   Improvements:
-     • Custom device names (click pill to rename)
-     • Typing indicator via GUN presence
-     • Image sending (<2MB, base64 chunked)
-     • Better reconnect / relay fallback
-     • Clean timestamps
-     • Clear chat button
-     • Message delivery confirmation dot
-   ══════════════════════════════════════════════════════════ */
-
 const $ = id => document.getElementById(id);
 
 /* ─── Device ID & Display Name ─── */
@@ -85,6 +73,11 @@ function scrollChat() {
 
 /* ─── GUN Setup with relay fallback ─── */
 const PEERS = [
+  // Local development peers (try these first)
+  'ws://localhost:3000/gun',
+  'ws://127.0.0.1:3000/gun',
+  'ws://localhost:8765/gun',
+  // Fallback to public relays
   'https://relay.peer.ooo/gun',
   'https://gun-manhattan.herokuapp.com/gun',
   'https://gunjs.herokuapp.com/gun',
@@ -96,20 +89,40 @@ let reconnectAttempt = 0;
 
 function initGun(peerList) {
   if (gun) return; // already init
-  gun = Gun({ peers: peerList, retry: 2500, localStorage: false });
+  
+  // Initialize GUN with WebRTC support and better error handling
+  gun = Gun({ 
+    peers: peerList, 
+    retry: 2500, 
+    localStorage: false,
+    // Enable WebRTC for peer-to-peer connections
+    webrtc: true,
+    // Reduce timeout for faster fallback
+    timeout: 5000
+  });
 
   gun.on('hi', peer => {
     connectedPeers.add(peer.url || peer);
     reconnectAttempt = 0;
     updatePeerStatus();
+    console.log('GUN: Connected to peer', peer.url || peer);
   });
 
   gun.on('bye', peer => {
     connectedPeers.delete(peer.url || peer);
     updatePeerStatus();
+    console.log('GUN: Disconnected from peer', peer.url || peer);
     // Try reconnect after a short delay
     if (connectedPeers.size === 0) scheduleReconnect();
   });
+
+  // Handle connection errors more gracefully
+  gun.on('out', {get: {'#': {'>': 0}}, 'err': (err, key) => {
+    if (err && connectedPeers.size === 0) {
+      console.warn('GUN: Connection error, attempting fallback');
+      scheduleReconnect();
+    }
+  }});
 }
 
 function updatePeerStatus() {
@@ -120,18 +133,30 @@ function updatePeerStatus() {
     label.textContent = `${connectedPeers.size} relay${connectedPeers.size > 1 ? 's' : ''} connected`;
   } else {
     dot.classList.remove('connected');
-    label.textContent = 'Disconnected…';
+    label.textContent = reconnectAttempt > 0 ? 'Reconnecting…' : 'Connecting…';
   }
 }
 
 function scheduleReconnect() {
   reconnectAttempt++;
   const delay = Math.min(2000 * reconnectAttempt, 15000);
+  updatePeerStatus();
+  
   setTimeout(() => {
     if (connectedPeers.size === 0) {
+      console.log(`GUN: Reconnection attempt ${reconnectAttempt}`);
       // Try next peer rotation
       const rotated = [...PEERS.slice(reconnectAttempt % PEERS.length), ...PEERS.slice(0, reconnectAttempt % PEERS.length)];
       rotated.forEach(p => gun.opt({ peers: [p] }));
+      
+      // If we've tried many times, enable local-only mode
+      if (reconnectAttempt > 5) {
+        const dot = $('peerDot');
+        const label = $('peerStatus');
+        dot.classList.remove('connected');
+        label.textContent = 'Local mode (no relays)';
+        console.log('GUN: Switched to local-only mode');
+      }
     }
   }, delay);
 }
@@ -243,6 +268,7 @@ $('secret').addEventListener('input', () => { secret = $('secret').value; setEnc
 /* ─── Join room ─── */
 function joinRoom(id) {
   if (!id) { toast('Enter a Chat ID'); return; }
+  if (!gun) { toast('Database not connected. Please wait and try again.'); return; }
 
   // Teardown old room
   if (roomNode) roomNode.off();
@@ -298,16 +324,25 @@ function joinRoom(id) {
 /* ─── Render text message ─── */
 function renderMsg({ me, text, ts, from, name }) {
   const box = document.createElement('div');
-  box.className = 'lcg-msg ' + (me ? 'me' : 'them');
-
+  
   const senderLabel = me
     ? (getDisplayName() || 'You')
     : (name || 'id ' + (from || '–').slice(0, 8));
 
+  // Determine layout based on text length (use inline for short messages)
+  const useInlineLayout = text.length <= 20;
+  
+  box.className = `lcg-msg ${me ? 'me' : 'them'}${useInlineLayout ? ' inline-meta' : ''}`;
+
   box.innerHTML = `
-    <div>${escapeHtml(text)}</div>
-    <div class="lcg-msg-meta">${escapeHtml(senderLabel)} · ${fmtTime(ts)}</div>
+    <div class="lcg-msg-content">${escapeHtml(text)}</div>
+    <div class="lcg-msg-meta">
+      <span>${escapeHtml(senderLabel)}</span>
+      <span>·</span>
+      <span>${fmtTime(ts)}</span>
+    </div>
   `;
+  
   $('chat').appendChild(box);
   scrollChat();
 }
@@ -329,7 +364,11 @@ function renderImage({ me, src, ts, from, name }) {
 
   const meta = document.createElement('div');
   meta.className = 'lcg-msg-meta';
-  meta.textContent = `${senderLabel} · ${fmtTime(ts)}`;
+  meta.innerHTML = `
+    <span>${escapeHtml(senderLabel)}</span>
+    <span>·</span>
+    <span>${fmtTime(ts)}</span>
+  `;
 
   box.appendChild(img);
   box.appendChild(meta);
@@ -363,6 +402,7 @@ async function sendMessage() {
   const t = $('text').value.trim();
   if (!t) return;
   if (!roomId) { toast('Join a room first'); return; }
+  if (!roomNode) { toast('Room not connected, please try joining again'); return; }
 
   setMyTyping(false);
   clearTimeout(typingTimer);
@@ -390,6 +430,7 @@ $('fileInput').addEventListener('change', async e => {
   e.target.value = '';
   if (!file) return;
   if (!roomId) { toast('Join a room first'); return; }
+  if (!roomNode) { toast('Room not connected, please try joining again'); return; }
 
   if (!file.type.startsWith('image/')) {
     toast('Only images are supported');
