@@ -49,6 +49,27 @@ function escapeHtml(s) {
     ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
 }
 
+/* ─── File type detection ─── */
+function getFileIcon(mimeType, fileName = '') {
+  if (mimeType.startsWith('image/')) return 'fa-image';
+  if (mimeType.startsWith('video/')) return 'fa-video';
+  if (mimeType.startsWith('audio/')) return 'fa-music';
+  if (mimeType.includes('pdf')) return 'fa-file-pdf';
+  if (mimeType.includes('document') || mimeType.includes('word')) return 'fa-file-word';
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'fa-file-excel';
+  if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'fa-file-powerpoint';
+  if (mimeType.includes('text') || mimeType.includes('plain')) return 'fa-file-text';
+  if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('compress')) return 'fa-file-zipper';
+  return 'fa-file';
+}
+
+function getMediaType(mimeType) {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  return 'file';
+}
+
 let toastTimer;
 function toast(msg, duration = 1800) {
   const el = $('toast');
@@ -71,6 +92,25 @@ function scrollChat() {
   c.scrollTop = c.scrollHeight;
 }
 
+/* ─── Scroll management ─── */
+function isNearBottom() {
+  const c = $('chat');
+  return c.scrollHeight - c.scrollTop - c.clientHeight < 100;
+}
+
+function toggleScrollButton() {
+  const btn = $('scrollDownBtn');
+  const isAtBottom = isNearBottom();
+  btn.style.display = isAtBottom ? 'none' : 'flex';
+}
+
+$('chat').addEventListener('scroll', toggleScrollButton);
+
+$('scrollDownBtn').addEventListener('click', () => {
+  scrollChat();
+});
+
+/* ─── Fullscreen mode ─── */
 /* ─── GUN Setup with relay fallback ─── */
 const PEERS = [
   // Local development peers (try these first)
@@ -193,9 +233,11 @@ function updateTypingHint() {
   if (names.length === 0) {
     el.textContent = '';
   } else if (names.length === 1) {
-    el.textContent = `${names[0]} is typing…`;
+    el.innerHTML = `<i class="fas fa-keyboard" style="opacity:0.6; margin-right:4px;"></i> <strong>${escapeHtml(names[0])}</strong> is typing…`;
   } else {
-    el.textContent = `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} are typing…`;
+    const allButLast = names.slice(0, -1).map(n => `<strong>${escapeHtml(n)}</strong>`).join(', ');
+    const last = `<strong>${escapeHtml(names[names.length - 1])}</strong>`;
+    el.innerHTML = `<i class="fas fa-keyboard" style="opacity:0.6; margin-right:4px;"></i> ${allButLast} and ${last} are typing…`;
   }
 }
 
@@ -294,7 +336,9 @@ function joinRoom(id) {
     if (!msg || typeof msg !== 'object') return;
     const uid = msg.uid || key;
     if (seen.has(uid)) return;
-    seen.add(uid);
+
+    // Check if at bottom before rendering
+    const wasAtBottom = isNearBottom();
 
     if (msg.type === 'image') {
       renderImage({
@@ -303,6 +347,34 @@ function joinRoom(id) {
         ts:   msg.ts || Date.now(),
         from: msg.from,
         name: msg.fromName || null
+      });
+    } else if (msg.type === 'video') {
+      renderVideo({
+        me:       msg.from === deviceId,
+        src:      msg.data,
+        ts:       msg.ts || Date.now(),
+        from:     msg.from,
+        name:     msg.fromName || null,
+        fileName: msg.fileName || 'video'
+      });
+    } else if (msg.type === 'audio') {
+      renderAudio({
+        me:       msg.from === deviceId,
+        src:      msg.data,
+        ts:       msg.ts || Date.now(),
+        from:     msg.from,
+        name:     msg.fromName || null,
+        fileName: msg.fileName || 'audio'
+      });
+    } else if (msg.type === 'file') {
+      renderFile({
+        me:       msg.from === deviceId,
+        src:      msg.data,
+        ts:       msg.ts || Date.now(),
+        from:     msg.from,
+        name:     msg.fromName || null,
+        fileName: msg.fileName || 'file',
+        mimeType: msg.mimeType || 'application/octet-stream'
       });
     } else {
       const text = await dec(msg.text);
@@ -315,6 +387,12 @@ function joinRoom(id) {
         name: msg.fromName || null
       });
     }
+
+    // Auto-scroll if was at bottom
+    if (wasAtBottom) {
+      scrollChat();
+    }
+    toggleScrollButton();
   });
 
   toast(`Joined room "${id}"`);
@@ -325,23 +403,33 @@ function joinRoom(id) {
 function renderMsg({ me, text, ts, from, name }) {
   const box = document.createElement('div');
   
-  const senderLabel = me
-    ? (getDisplayName() || 'You')
-    : (name || 'id ' + (from || '–').slice(0, 8));
+  // Only show sender name for others' messages
+  const senderLabel = !me
+    ? (name || 'id ' + (from || '–').slice(0, 8))
+    : null;
 
   // Determine layout based on text length (use inline for short messages)
   const useInlineLayout = text.length <= 20;
   
   box.className = `lcg-msg ${me ? 'me' : 'them'}${useInlineLayout ? ' inline-meta' : ''}`;
 
-  box.innerHTML = `
-    <div class="lcg-msg-content">${escapeHtml(text)}</div>
-    <div class="lcg-msg-meta">
-      <span>${escapeHtml(senderLabel)}</span>
-      <span>·</span>
-      <span>${fmtTime(ts)}</span>
-    </div>
-  `;
+  if (senderLabel) {
+    box.innerHTML = `
+      <div class="lcg-msg-content">${escapeHtml(text)}</div>
+      <div class="lcg-msg-meta">
+        <span>${escapeHtml(senderLabel)}</span>
+        <span>·</span>
+        <span>${fmtTime(ts)}</span>
+      </div>
+    `;
+  } else {
+    box.innerHTML = `
+      <div class="lcg-msg-content">${escapeHtml(text)}</div>
+      <div class="lcg-msg-meta">
+        <span>${fmtTime(ts)}</span>
+      </div>
+    `;
+  }
   
   $('chat').appendChild(box);
   scrollChat();
@@ -352,9 +440,10 @@ function renderImage({ me, src, ts, from, name }) {
   const box = document.createElement('div');
   box.className = 'lcg-msg ' + (me ? 'me' : 'them');
 
-  const senderLabel = me
-    ? (getDisplayName() || 'You')
-    : (name || 'id ' + (from || '–').slice(0, 8));
+  // Only show sender name for others' messages
+  const senderLabel = !me
+    ? (name || 'id ' + (from || '–').slice(0, 8))
+    : null;
 
   const img = document.createElement('img');
   img.className = 'lcg-msg-img';
@@ -364,11 +453,15 @@ function renderImage({ me, src, ts, from, name }) {
 
   const meta = document.createElement('div');
   meta.className = 'lcg-msg-meta';
-  meta.innerHTML = `
-    <span>${escapeHtml(senderLabel)}</span>
-    <span>·</span>
-    <span>${fmtTime(ts)}</span>
-  `;
+  if (senderLabel) {
+    meta.innerHTML = `
+      <span>${escapeHtml(senderLabel)}</span>
+      <span>·</span>
+      <span>${fmtTime(ts)}</span>
+    `;
+  } else {
+    meta.innerHTML = `<span>${fmtTime(ts)}</span>`;
+  }
 
   box.appendChild(img);
   box.appendChild(meta);
@@ -385,6 +478,155 @@ $('lightboxClose').addEventListener('click', () => $('lightbox').classList.remov
 $('lightbox').addEventListener('click', e => {
   if (e.target === $('lightbox')) $('lightbox').classList.remove('open');
 });
+
+/* ─── Render video message ─── */
+function renderVideo({ me, src, ts, from, name, fileName = 'video' }) {
+  const box = document.createElement('div');
+  box.className = 'lcg-msg ' + (me ? 'me' : 'them');
+
+  const senderLabel = !me ? (name || 'id ' + (from || '–').slice(0, 8)) : null;
+
+  const video = document.createElement('video');
+  video.className = 'lcg-msg-img';
+  video.src = src;
+  video.controls = true;
+  video.style.cursor = 'pointer';
+  video.addEventListener('click', e => e.stopPropagation());
+
+  const meta = document.createElement('div');
+  meta.className = 'lcg-msg-meta';
+  if (senderLabel) {
+    meta.innerHTML = `
+      <span>${escapeHtml(senderLabel)}</span>
+      <span>·</span>
+      <span>${fmtTime(ts)}</span>
+    `;
+  } else {
+    meta.innerHTML = `<span>${fmtTime(ts)}</span>`;
+  }
+
+  box.appendChild(video);
+  box.appendChild(meta);
+  $('chat').appendChild(box);
+  scrollChat();
+}
+
+/* ─── Render audio message ─── */
+function renderAudio({ me, src, ts, from, name, fileName = 'audio' }) {
+  const box = document.createElement('div');
+  box.className = 'lcg-msg ' + (me ? 'me' : 'them');
+
+  const senderLabel = !me ? (name || 'id ' + (from || '–').slice(0, 8)) : null;
+
+  const audio = document.createElement('audio');
+  audio.className = 'lcg-msg-audio';
+  audio.src = src;
+  audio.controls = true;
+  audio.style.width = '100%';
+  audio.style.maxWidth = '300px';
+
+  const meta = document.createElement('div');
+  meta.className = 'lcg-msg-meta';
+  if (senderLabel) {
+    meta.innerHTML = `
+      <span>${escapeHtml(senderLabel)}</span>
+      <span>·</span>
+      <span>${fmtTime(ts)}</span>
+    `;
+  } else {
+    meta.innerHTML = `<span>${fmtTime(ts)}</span>`;
+  }
+
+  box.appendChild(audio);
+  box.appendChild(meta);
+  $('chat').appendChild(box);
+  scrollChat();
+}
+
+/* ─── Render generic file message ─── */
+function renderFile({ me, src, ts, from, name, fileName = 'file', mimeType = 'application/octet-stream', sending = false }) {
+  const box = document.createElement('div');
+  box.className = 'lcg-msg ' + (me ? 'me' : 'them');
+
+  const senderLabel = !me ? (name || 'id ' + (from || '–').slice(0, 8)) : null;
+
+  const fileContainer = document.createElement('div');
+  fileContainer.style.display = 'flex';
+  fileContainer.style.alignItems = 'center';
+  fileContainer.style.gap = '12px';
+  fileContainer.style.padding = '8px 0';
+
+  const icon = document.createElement('i');
+  icon.className = `fas ${sending ? 'fa-hourglass-end' : getFileIcon(mimeType, fileName)}`;
+  icon.style.fontSize = '20px';
+  icon.style.color = me ? 'currentColor' : 'var(--accent)';
+  icon.style.opacity = me ? '0.9' : '1';
+
+  const fileInfo = document.createElement('div');
+  fileInfo.style.display = 'flex';
+  fileInfo.style.flexDirection = 'column';
+  fileInfo.style.minWidth = '0';
+  fileInfo.style.gap = '2px';
+
+  const fileName_el = document.createElement('div');
+  fileName_el.style.fontWeight = '500';
+  fileName_el.style.wordBreak = 'break-word';
+  fileName_el.style.fontSize = '14px';
+  fileName_el.textContent = fileName;
+
+  fileInfo.appendChild(fileName_el);
+
+  if (sending) {
+    const sendingLabel = document.createElement('div');
+    sendingLabel.style.fontSize = '11px';
+    sendingLabel.style.opacity = '0.7';
+    sendingLabel.textContent = '⏳ Sending file…';
+    fileInfo.appendChild(sendingLabel);
+  } else {
+    const fileLink = document.createElement('a');
+    fileLink.href = src;
+    fileLink.download = fileName;
+    fileLink.style.color = me ? 'currentColor' : 'var(--accent)';
+    fileLink.style.fontSize = '12px';
+    fileLink.textContent = '⬇️ Download';
+    fileLink.style.textDecoration = 'none';
+    fileLink.style.cursor = 'pointer';
+    fileLink.style.display = 'inline-block';
+    fileLink.style.padding = '2px 6px';
+    fileLink.style.borderRadius = '4px';
+    fileLink.style.transition = 'opacity 120ms ease';
+    fileLink.style.width = 'fit-content';
+    
+    fileLink.addEventListener('mouseover', () => {
+      fileLink.style.opacity = '0.8';
+    });
+    fileLink.addEventListener('mouseout', () => {
+      fileLink.style.opacity = '1';
+    });
+    
+    fileInfo.appendChild(fileLink);
+  }
+
+  fileContainer.appendChild(icon);
+  fileContainer.appendChild(fileInfo);
+  box.appendChild(fileContainer);
+
+  const meta = document.createElement('div');
+  meta.className = 'lcg-msg-meta';
+  if (senderLabel) {
+    meta.innerHTML = `
+      <span>${escapeHtml(senderLabel)}</span>
+      <span>·</span>
+      <span>${fmtTime(ts)}</span>
+    `;
+  } else {
+    meta.innerHTML = `<span>${fmtTime(ts)}</span>`;
+  }
+
+  box.appendChild(meta);
+  $('chat').appendChild(box);
+  scrollChat();
+}
 
 /* ─── Send text ─── */
 $('send').addEventListener('click', sendMessage);
@@ -424,7 +666,7 @@ async function sendMessage() {
   roomNode.get('messages').set(payload);
 }
 
-/* ─── Send image ─── */
+/* ─── Send file ─── */
 $('fileInput').addEventListener('change', async e => {
   const file = e.target.files[0];
   e.target.value = '';
@@ -432,33 +674,81 @@ $('fileInput').addEventListener('change', async e => {
   if (!roomId) { toast('Join a room first'); return; }
   if (!roomNode) { toast('Room not connected, please try joining again'); return; }
 
-  if (!file.type.startsWith('image/')) {
-    toast('Only images are supported');
-    return;
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    toast('Image must be under 2MB');
+  const maxSize = 10 * 1024 * 1024; // 10MB hard limit
+  if (file.size > maxSize) {
+    toast(`File too large (max 10MB, got ${(file.size / 1024 / 1024).toFixed(1)}MB)`);
     return;
   }
 
-  toast('Sending image…', 3000);
+  // Show "Sending file..." message with file info
+  const fileSize = (file.size / 1024 / 1024).toFixed(2);
+  const sizeHint = file.size < 2 * 1024 * 1024 ? '✓' : '⚠';
+  toast(`${sizeHint} Sending file… (${fileSize}MB)`, 4000);
+
+  const mediaType = getMediaType(file.type);
+  
+  // First, show "sending" message
+  const sendingMessageBox = document.createElement('div');
+  const uid = crypto.randomUUID();
+  seen.add(uid);
+  
+  if (mediaType === 'file') {
+    renderFile({ 
+      me: true, 
+      src: '', 
+      ts: Date.now(), 
+      from: deviceId, 
+      name: getDisplayName(), 
+      fileName: file.name, 
+      mimeType: file.type,
+      sending: true
+    });
+  }
 
   const reader = new FileReader();
   reader.onload = async ev => {
     const dataUrl = ev.target.result;
-    const uid = crypto.randomUUID();
-    const payload = {
+    
+    const basePayload = {
       uid,
       from:     deviceId,
       fromName: getDisplayName() || 'Anonymous',
       ts:       Date.now(),
-      type:     'image',
-      data:     dataUrl
+      data:     dataUrl,
+      fileName: file.name,
+      mimeType: file.type
     };
-    seen.add(uid);
-    renderImage({ me: true, src: dataUrl, ts: payload.ts, from: deviceId, name: getDisplayName() });
-    roomNode.get('messages').set(payload);
+
+    if (mediaType === 'image') {
+      basePayload.type = 'image';
+      renderImage({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName() });
+    } else if (mediaType === 'video') {
+      basePayload.type = 'video';
+      renderVideo({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name });
+    } else if (mediaType === 'audio') {
+      basePayload.type = 'audio';
+      renderAudio({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name });
+    } else {
+      basePayload.type = 'file';
+      // Remove the sending message and add the real one
+      const messages = $('chat').querySelectorAll('.lcg-msg');
+      if (messages.length > 0) {
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg.textContent.includes('Sending file')) {
+          lastMsg.remove();
+        }
+      }
+      renderFile({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name, mimeType: file.type, sending: false });
+    }
+
+    roomNode.get('messages').set(basePayload);
+    toast('File sent!', 2000);
   };
+
+  reader.onerror = () => {
+    toast('Error reading file');
+  };
+
   reader.readAsDataURL(file);
 });
 
