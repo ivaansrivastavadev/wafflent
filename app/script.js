@@ -292,8 +292,30 @@ function randomRoom() {
 
 function initFromHash() {
   const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
-  if (h) $('room').value = h;
+  if (!h) {
+    if (!$('room').value) $('room').value = randomRoom();
+    return;
+  }
+  
+  // Parse room and secret from hash (format: "room" or "room?secret=xxx")
+  const parts = h.split('?');
+  const roomId = parts[0].trim();
+  const queryStr = parts[1] || '';
+  
+  if (roomId) $('room').value = roomId;
   if (!$('room').value) $('room').value = randomRoom();
+  
+  // Extract secret if present
+  const secretMatch = queryStr.match(/secret=([^&]+)/);
+  if (secretMatch) {
+    const decodedSecret = decodeURIComponent(secretMatch[1]);
+    $('secret').value = decodedSecret;
+    secret = decodedSecret;
+    setEncHint();
+    
+    // Clear the hash to remove secret from URL
+    history.replaceState(null, '', location.pathname + '#' + encodeURIComponent(roomId));
+  }
 }
 
 initFromHash();
@@ -326,6 +348,7 @@ function joinRoom(id) {
   roomId = id;
   location.hash = encodeURIComponent(roomId);
   $('roomHint').textContent = `Room: ${roomId}`;
+  $('shareQRBtn').style.display = 'flex';
 
   roomNode     = gun.get('lcg_rooms').get(roomId);
   presenceNode = gun.get('lcg_presence').get(roomId);
@@ -478,6 +501,45 @@ $('lightboxClose').addEventListener('click', () => $('lightbox').classList.remov
 $('lightbox').addEventListener('click', e => {
   if (e.target === $('lightbox')) $('lightbox').classList.remove('open');
 });
+
+/* ─── QR Code Modal ─── */
+function openQRModal() {
+  if (!roomId) {
+    toast('Join a room first');
+    return;
+  }
+  
+  // Clear previous QR code
+  $('qrContainer').innerHTML = '';
+  
+  // Generate QR code with room invite URL and secret if present
+  let inviteUrl = location.origin + location.pathname + '#' + encodeURIComponent(roomId);
+  if (secret) {
+    inviteUrl += '?secret=' + encodeURIComponent(secret);
+  }
+  
+  new QRCode($('qrContainer'), {
+    text: inviteUrl,
+    width: 240,
+    height: 240,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  
+  // Set room ID display
+  $('qrRoomId').textContent = roomId;
+  
+  // Show modal
+  $('qrModal').classList.add('open');
+}
+
+$('qrClose').addEventListener('click', () => $('qrModal').classList.remove('open'));
+$('qrModal').addEventListener('click', e => {
+  if (e.target === $('qrModal')) $('qrModal').classList.remove('open');
+});
+
+$('shareQRBtn').addEventListener('click', openQRModal);
 
 /* ─── Render video message ─── */
 function renderVideo({ me, src, ts, from, name, fileName = 'video' }) {
@@ -757,7 +819,13 @@ $('join').addEventListener('click', () => joinRoom($('room').value.trim()));
 
 $('copyLink').addEventListener('click', async () => {
   const id = $('room').value.trim();
-  const url = location.origin + location.pathname + '#' + encodeURIComponent(id);
+  let url = location.origin + location.pathname + '#' + encodeURIComponent(id);
+  
+  // Include secret in URL if present
+  if (secret) {
+    url += '?secret=' + encodeURIComponent(secret);
+  }
+  
   await navigator.clipboard.writeText(url);
   toast('Invite link copied!');
 });
