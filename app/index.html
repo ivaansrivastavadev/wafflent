@@ -135,6 +135,18 @@
       justify-content: flex-start;
     }
     
+    /* Message status indicator */
+    .msg-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 2px;
+      transition: color 200ms ease;
+    }
+    .msg-status i {
+      display: inline-block;
+    }
+    
     /* Inline metadata for short messages */
     .lcg-msg.inline-meta {
       flex-direction: row;
@@ -200,8 +212,9 @@
     }
     .lcg-input-actions {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       gap: 6px;
+      align-items: flex-end;
     }
 
     /* ── File attach button ── */
@@ -312,6 +325,152 @@
       border-color: var(--error);
     }
 
+    /* ── Message Context Menu ── */
+    .msg-context-menu {
+      position: fixed;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      z-index: 500;
+      display: none;
+      min-width: 180px;
+      overflow: hidden;
+      animation: msg-menu-appear 150ms var(--ease);
+    }
+    
+    .msg-context-menu.open {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    @keyframes msg-menu-appear {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    @keyframes msg-disappear {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.95); }
+    }
+    
+    .msg-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background var(--dur-fast) var(--ease);
+      border: none;
+      background: none;
+      color: var(--text-secondary);
+      font-family: var(--font);
+      font-size: var(--text-sm);
+      text-align: left;
+      width: 100%;
+    }
+    
+    .msg-menu-item:hover {
+      background: var(--bg-overlay);
+      color: var(--text-primary);
+    }
+    
+    .msg-menu-item.danger:hover {
+      background: var(--error-subtle);
+      color: var(--error);
+    }
+    
+    .msg-menu-item i {
+      font-size: 14px;
+      opacity: 0.7;
+    }
+    
+    .msg-menu-separator {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+    
+    /* Emoji Picker */
+    .emoji-picker {
+      position: fixed;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      z-index: 500;
+      display: none;
+      padding: 8px;
+      min-width: 280px;
+      max-width: 320px;
+      animation: msg-menu-appear 150ms var(--ease);
+    }
+    
+    .emoji-picker.open {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+    }
+    
+    .emoji-btn {
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: all var(--dur-fast) var(--ease);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .emoji-btn:hover {
+      background: var(--bg-overlay);
+      border-color: var(--border);
+      transform: scale(1.1);
+    }
+    
+    /* Message reactions container */
+    .msg-reactions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .reaction-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-overlay);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all var(--dur-fast) var(--ease);
+    }
+    
+    .reaction-badge:hover {
+      background: var(--bg-elevated);
+      border-color: var(--accent);
+    }
+    
+    .reaction-emoji {
+      font-size: 14px;
+    }
+    
+    .reaction-count {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      min-width: 12px;
+      text-align: center;
+    }
+
     @media (max-width: 600px) {
 
       .lcg-input-actions { flex-direction: row; }
@@ -354,15 +513,10 @@
               <span class="wf-input-icon-left"><i class="fas fa-key" style="font-size:12px;"></i></span>
               <input id="secret" type="password" class="wf-input has-icon-left" placeholder="shared passphrase" />
             </div>
-          </div>
-        </div>
+           </div>
+         </div>
 
-        <!-- Encryption status hint -->
-        <div style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:var(--text-xs);">
-          <span id="encHint" style="color:var(--text-secondary);"></span>
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:16px;">
+         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:16px;">
           <button id="join" type="button" class="wf-btn wf-btn-filled"><i class="fas fa-right-to-bracket"></i>&nbsp; Join / Create</button>
           <button id="copyLink" type="button" class="wf-btn wf-btn-outlined"><i class="fas fa-link"></i>&nbsp; Copy Invite</button>
           <button id="clearBtn" type="button" class="wf-btn wf-btn-ghost" style="color:var(--error);"><i class="fas fa-broom"></i>&nbsp; Clear Chat</button>
@@ -393,20 +547,21 @@
           <i class="fas fa-chevron-down"></i>
         </button>
       </div>
-      <!-- Typing indicator -->
-      <div class="lcg-typing" id="typingHint" style="padding: 4px 20px;"></div>
 
       <!-- Input -->
       <div style="padding:14px 16px; border-top:1px solid var(--border);">
         <div class="lcg-inputbar">
+          <button id="stickerBtn" class="wf-btn-icon sm" title="Add sticker" style="flex-shrink:0;">
+            <i class="fas fa-face-smile"></i>
+          </button>
           <textarea id="text" class="wf-input" placeholder="type a message…"></textarea>
           <div class="lcg-input-actions">
-            <!-- Image attach -->
-            <label class="lcg-attach" title="Send image (max 2MB)">
-              <i class="fas fa-image"></i>
-              <input type="file" id="fileInput" accept="image/*" style="display:none;">
+            <!-- Attachment button -->
+            <label class="lcg-attach" title="Send attachment">
+              <i class="fas fa-paperclip"></i>
+              <input type="file" id="fileInput" style="display:none;">
             </label>
-            <button id="send" class="wf-btn wf-btn-filled" style="width:70px;">
+            <button id="send" class="wf-btn wf-btn-filled" style="width:44px; height:44px; flex-shrink:0; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center;">
               <i class="fas fa-paper-plane"></i>
             </button>
           </div>
@@ -461,11 +616,44 @@
   </div>
 </div>
 
-<!-- GUN -->
+<!-- Message Context Menu -->
+<div class="msg-context-menu" id="msgContextMenu">
+  <button class="msg-menu-item" id="editMsgBtn" title="Edit this message">
+    <i class="fas fa-pencil"></i>
+    <span>Edit</span>
+  </button>
+  <button class="msg-menu-item" id="copyMsgBtn" title="Copy message text">
+    <i class="fas fa-copy"></i>
+    <span>Copy</span>
+  </button>
+  <button class="msg-menu-item" id="deleteMsgBtn" danger title="Delete this message">
+    <i class="fas fa-trash"></i>
+    <span>Delete</span>
+  </button>
+  <div class="msg-menu-separator"></div>
+  <button class="msg-menu-item" id="reactMsgBtn" title="Add reaction">
+    <i class="fas fa-face-smile"></i>
+    <span>React</span>
+  </button>
+</div>
+
+<!-- Emoji Picker -->
+<div class="emoji-picker" id="emojiPicker">
+  <!-- Emojis will be generated by JavaScript -->
+</div>
+
+<!-- Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gun/sea.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/gun/axe.js"></script>
+
+<!-- App modules (load in order) -->
+<script src="/app/utils.js"></script>
+<script src="/app/p2p.js"></script>
+<script src="/app/chat.js"></script>
+<script src="/app/messages.js"></script>
+<script src="/app/ui.js"></script>
 <script src="/app/script.js"></script>
 </body>
 </html>

@@ -1,0 +1,29 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  
+  <!-- Yellow background -->
+  <rect width="200" height="200" rx="40" fill="#FFD54F"/>
+
+  <!-- Bigger chat bubble with rounded tail -->
+  <path d="
+    M40 60
+    Q40 40 60 40
+    H140
+    Q160 40 160 60
+    V120
+    Q160 140 140 140
+    H100
+    Q95 140 92 144
+    L82 158
+    Q78 164 74 158
+    L70 144
+    Q68 140 62 140
+    Q40 140 40 120
+    Z"
+    fill="#111111"/>
+
+  <!-- Centered message dots -->
+  <circle cx="85" cy="95" r="5" fill="#FFFFFF"/>
+  <circle cx="100" cy="95" r="5" fill="#FFFFFF"/>
+  <circle cx="115" cy="95" r="5" fill="#FFFFFF"/>
+
+</svg>

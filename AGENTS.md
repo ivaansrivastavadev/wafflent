@@ -1,5 +1,5 @@
 # What is Wafflent?
-
+A P2P Chat App
 
 # Rules:
 1. Always use the `tree` command when you do not know the structure
@@ -12,4 +12,5 @@
 6. Crawl "https://docs.puter.com/llms.txt"
 7. If i send excaildraw like images please only copy the layout make the fonts, styles, colors from styles file
 8. Use font-awsome
-9. Use WebRTC
+9. Use WebRTC/GUN
+10. Don't be stuck on async errors please recheck async always
