@@ -81,7 +81,6 @@ function joinRoom(id) {
   roomId = id;
   location.hash = encodeURIComponent(roomId);
   $('roomHint').textContent = `Room: ${roomId}`;
-  $('shareQRBtn').style.display = 'flex';
 
   roomNode     = gun.get('lcg_rooms').get(roomId);
   presenceNode = gun.get('lcg_presence').get(roomId);
@@ -161,7 +160,8 @@ function joinRoom(id) {
     if (wasAtBottom) {
       scrollChat();
     }
-    toggleScrollButton();
+    // Defer button toggle to after scroll completes
+    setTimeout(() => toggleScrollButton(), 0);
   });
 
   toast(`Joined room "${id}"`);
@@ -387,13 +387,6 @@ $('copyLink').addEventListener('click', async () => {
   
   await navigator.clipboard.writeText(url);
   toast('Invite link copied!');
-});
-
-$('clearBtn').addEventListener('click', () => {
-  if (!confirm('Clear all messages from your view? (Does not delete from relay)')) return;
-  $('chat').innerHTML = '';
-  seen.clear();
-  systemMsg('— Chat cleared (local only) —');
 });
 
 /* ─── Auto-join on load ─── */

@@ -82,17 +82,26 @@ function scrollChat() {
 
 function isNearBottom() {
   const c = $('chat');
-  return c.scrollHeight - c.scrollTop - c.clientHeight < 100;
+  // Check if user is near the bottom (within 100px of the last message)
+  const distanceFromBottom = c.scrollHeight - c.scrollTop - c.clientHeight;
+  return distanceFromBottom < 100;
 }
 
 function toggleScrollButton() {
-   const btn = $('scrollDownBtn');
-   const c = $('chat');
-   const isAtBottom = isNearBottom();
-   const isScreenFilled = c.scrollHeight > c.clientHeight;
-   // Only show button if there's content to scroll to (screen filled) and user has scrolled up
-   btn.style.display = (!isAtBottom && isScreenFilled) ? 'flex' : 'none';
- }
+  const btn = $('scrollDownBtn');
+  const c = $('chat');
+  
+  // Only show button if:
+  // 1. There's content that overflows (scrollable)
+  // 2. The latest message is NOT visible on screen (user has scrolled up)
+  const isScrollable = c.scrollHeight > c.clientHeight;
+  const distanceFromBottom = c.scrollHeight - c.scrollTop - c.clientHeight;
+  const latestMessageNotVisible = distanceFromBottom >= 100; // NOT visible if 100px+ away
+  
+  // Show button only when there's scrollable content AND latest message is NOT visible
+  const shouldShow = isScrollable && latestMessageNotVisible;
+  btn.style.display = shouldShow ? 'flex' : 'none';
+}
 
 /* ─── Encryption helpers ─── */
 async function enc(plain) {
