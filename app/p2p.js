@@ -106,11 +106,14 @@ function setMyTyping(val) {
   if (!presenceNode || !roomId) return;
   if (isTyping === val) return;
   isTyping = val;
-  presenceNode.get(deviceId).put({
-    name: getDisplayName() || 'Anonymous',
-    typing: val,
-    ts: Date.now()
-  });
+  (async () => {
+    const encryptedName = secret ? await enc(getDisplayName() || 'Anonymous') : (getDisplayName() || 'Anonymous');
+    presenceNode.get(deviceId).put({
+      name: encryptedName,
+      typing: val,
+      ts: Date.now()
+    });
+  })();
 }
 
 function updateTypingHint() {
@@ -159,12 +162,13 @@ function updateTypingHint() {
 
 function watchPresence() {
   if (!presenceNode) return;
-  presenceNode.map().on((data, id) => {
+  presenceNode.map().on(async (data, id) => {
     if (!data || id === deviceId) return;
     const stale = Date.now() - (data.ts || 0) > 8000;
     if (data.typing && !stale) {
+      const decryptedName = secret && typeof data.name === 'string' ? await dec(data.name) : (data.name || id.slice(0, 8));
       otherTyping.set(id, { 
-        name: data.name || id.slice(0, 8), 
+        name: decryptedName, 
         ts: data.ts || Date.now()
       });
     } else {

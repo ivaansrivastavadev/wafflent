@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" type="image/png" href="/assets/roundedlogo.gif">
+  <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
   <title>Wafflent Chat</title>
   <link rel="stylesheet" href="/app/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -189,6 +189,20 @@
       margin-bottom: 4px;
       width: 100%;
       max-width: 320px;
+      height: 40px;
+      accent-color: var(--accent);
+    }
+    
+    /* Style audio player more prominently */
+    audio::-webkit-media-controls-panel {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: var(--r-md);
+    }
+    
+    audio::-webkit-media-controls-play-button,
+    audio::-webkit-media-controls-mute-button,
+    audio::-webkit-media-controls-volume-slider {
+      filter: brightness(1.2);
     }
 
     /* ── Scroll down button ── */
@@ -257,7 +271,7 @@
     /* ── Toast ── */
     .lcg-toast {
       position: fixed;
-      bottom: 24px; right: 24px;
+      bottom: auto; top: 80px; right: 24px;
       background: var(--bg-overlay);
       color: var(--text-primary);
       border: 1px solid var(--border);
@@ -517,17 +531,20 @@
         <button id="stickerBtn" class="wf-btn-icon" title="Add sticker" style="width:44px; height:44px; flex-shrink:0; border-radius:50%; display:flex; align-items:center; justify-content:center;">
           <i class="fas fa-face-smile"></i>
         </button>
-        <textarea id="text" class="wf-input" placeholder="type a message…"></textarea>
-        <div class="lcg-input-actions">
-          <!-- Attachment button -->
-          <label class="lcg-attach" title="Send attachment">
-            <i class="fas fa-paperclip"></i>
-            <input type="file" id="fileInput" style="display:none;">
-          </label>
-          <button id="send" class="wf-btn wf-btn-filled" style="width:44px; height:44px; flex-shrink:0; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center;">
-            <i class="fas fa-paper-plane"></i>
-          </button>
-        </div>
+        <textarea id="text" class="wf-input" placeholder="message…"></textarea>
+         <div class="lcg-input-actions">
+           <!-- Attachment button -->
+           <label class="lcg-attach" title="Send attachment">
+             <i class="fas fa-paperclip"></i>
+             <input type="file" id="fileInput" style="display:none;">
+           </label>
+           <button id="send" class="wf-btn wf-btn-filled" style="width:44px; height:44px; flex-shrink:0; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center;" title="Send message">
+             <i class="fas fa-paper-plane"></i>
+           </button>
+             <button id="voiceBtn" class="wf-btn wf-btn-filled" style="width:44px; height:44px; flex-shrink:0; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center;" title="Hold to record">
+              <i class="fas fa-microphone"></i>
+            </button>
+         </div>
       </div>
     </div>
   </div>
@@ -632,6 +649,8 @@
 <script src="/app/p2p.js"></script>
 <script src="/app/chat.js"></script>
 <script src="/app/messages.js"></script>
+<script src="/app/voice.js"></script>
+<script src="/app/media-player.js"></script>
 <script src="/app/ui.js"></script>
 <script src="/app/script.js"></script>
 </body>

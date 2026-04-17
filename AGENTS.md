@@ -1,5 +1,5 @@
 # What is Wafflent?
-A P2P Chat App
+A P2P Chat App, check README.md
 
 # Rules:
 1. Always use the `tree` command when you do not know the structure

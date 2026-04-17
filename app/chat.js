@@ -11,18 +11,7 @@ const seen = new Set();
 const msgStatus = new Map(); // uid → { status: 'sending'|'sent'|'seen', element: DOM }
 
 /* ─── Encryption ─── */
-async function enc(plain) {
-  if (!secret) return plain;
-  try { return await SEA.encrypt(plain, secret); }
-  catch (e) { console.error(e); return plain; }
-}
-
-async function dec(cipher) {
-  if (!secret) return cipher;
-  if (typeof cipher !== 'string') return String(cipher);
-  try { return await SEA.decrypt(cipher, secret); }
-  catch { return '[Unable to decrypt — wrong secret?]'; }
-}
+/* Note: enc() and dec() are defined in utils.js and available globally */
 
 /* ─── Room init ─── */
 function randomRoom() {
@@ -87,74 +76,95 @@ function joinRoom(id) {
 
   watchPresence();
 
-  roomNode.get('messages').map().on(async (msg, key) => {
-    if (!msg || typeof msg !== 'object') return;
-    const uid = msg.uid || key;
-    if (seen.has(uid)) return;
-    
-    // Mark as seen immediately to prevent duplicates
-    seen.add(uid);
+   roomNode.get('messages').map().on(async (msg, key) => {
+     if (!msg || typeof msg !== 'object') return;
+     const uid = msg.uid || key;
+     if (seen.has(uid)) return;
+     
+     // Mark as seen immediately to prevent duplicates
+     seen.add(uid);
 
-    // Check if at bottom before rendering
-    const wasAtBottom = isNearBottom();
+     // Check if at bottom before rendering
+     const wasAtBottom = isNearBottom();
 
-    if (msg.type === 'image') {
-      renderImage({
-        me:   msg.from === deviceId,
-        src:  msg.data,
-        ts:   msg.ts || Date.now(),
-        from: msg.from,
-        name: msg.fromName || null,
-        uid:  msg.uid || key,
-        status: 'sent'
-      });
-    } else if (msg.type === 'video') {
-      renderVideo({
-        me:       msg.from === deviceId,
-        src:      msg.data,
-        ts:       msg.ts || Date.now(),
-        from:     msg.from,
-        name:     msg.fromName || null,
-        fileName: msg.fileName || 'video',
-        uid:      msg.uid || key,
-        status:   'sent'
-      });
-    } else if (msg.type === 'audio') {
-      renderAudio({
-        me:       msg.from === deviceId,
-        src:      msg.data,
-        ts:       msg.ts || Date.now(),
-        from:     msg.from,
-        name:     msg.fromName || null,
-        fileName: msg.fileName || 'audio',
-        uid:      msg.uid || key,
-        status:   'sent'
-      });
-    } else if (msg.type === 'file') {
-      renderFile({
-        me:       msg.from === deviceId,
-        src:      msg.data,
-        ts:       msg.ts || Date.now(),
-        from:     msg.from,
-        name:     msg.fromName || null,
-        fileName: msg.fileName || 'file',
-        mimeType: msg.mimeType || 'application/octet-stream',
-        uid:      msg.uid || key,
-        status:   'sent'
-      });
-    } else {
-      const text = await dec(msg.text);
-      if (!text) return;
-      renderMsg({
-        me:   msg.from === deviceId,
-        text: String(text),
-        ts:   msg.ts || Date.now(),
-        from: msg.from,
-        name: msg.fromName || null,
-        uid:  msg.uid || key,
-        status: 'sent'
-      });
-    }
+     if (msg.type === 'image') {
+       const decryptedData = await dec(msg.data);
+       renderImage({
+         me:   msg.from === deviceId,
+         src:  decryptedData,
+         ts:   msg.ts || Date.now(),
+         from: msg.from,
+         name: msg.fromName || null,
+         uid:  msg.uid || key,
+         status: 'sent'
+       });
+     } else if (msg.type === 'video') {
+       const decryptedData = await dec(msg.data);
+       const decryptedFileName = await dec(msg.fileName);
+       renderVideo({
+         me:       msg.from === deviceId,
+         src:      decryptedData,
+         ts:       msg.ts || Date.now(),
+         from:     msg.from,
+         name:     msg.fromName || null,
+         fileName: decryptedFileName || 'video',
+         uid:      msg.uid || key,
+         status:   'sent'
+       });
+     } else if (msg.type === 'audio') {
+       const decryptedData = await dec(msg.data);
+       const decryptedFileName = await dec(msg.fileName);
+       renderAudio({
+         me:       msg.from === deviceId,
+         src:      decryptedData,
+         ts:       msg.ts || Date.now(),
+         from:     msg.from,
+         name:     msg.fromName || null,
+         fileName: decryptedFileName || 'audio',
+         uid:      msg.uid || key,
+         status:   'sent'
+       });
+      } else if (msg.type === 'file') {
+        const decryptedData = await dec(msg.data);
+        const decryptedFileName = await dec(msg.fileName);
+        const decryptedMimeType = await dec(msg.mimeType);
+        renderFile({
+          me:       msg.from === deviceId,
+          src:      decryptedData,
+          ts:       msg.ts || Date.now(),
+          from:     msg.from,
+          name:     msg.fromName || null,
+          fileName: decryptedFileName || 'file',
+          mimeType: decryptedMimeType || 'application/octet-stream',
+          uid:      msg.uid || key,
+          status:   'sent'
+        });
+      } else if (msg.type === 'voice') {
+        const decryptedData = await dec(msg.data);
+        const decryptedDuration = parseInt(await dec(msg.duration)) || 0;
+        renderVoice({
+          me:       msg.from === deviceId,
+          src:      decryptedData,
+          ts:       msg.ts || Date.now(),
+          from:     msg.from,
+          name:     msg.fromName || null,
+          duration: decryptedDuration,
+          uid:      msg.uid || key,
+          status:   'sent'
+        });
+      } else {
+       const text = await dec(msg.text);
+       if (!text) return;
+       renderMsg({
+         me:   msg.from === deviceId,
+         text: String(text),
+         ts:   msg.ts || Date.now(),
+         from: msg.from,
+         name: msg.fromName || null,
+         uid:  msg.uid || key,
+         status: 'sent'
+       });
+     }
 
     // Auto-scroll if was at bottom
     if (wasAtBottom) {
@@ -246,16 +256,47 @@ function updateMessageStatus(uid, newStatus) {
 }
 
 /* ─── Send text ─── */
-$('send').addEventListener('click', sendMessage);
-$('text').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+$('send').addEventListener('click', () => {
+  sendMessage();
+  // Update voice button after sending
+  setTimeout(() => toggleVoiceButton(), 50);
 });
+$('text').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { 
+    e.preventDefault(); 
+    sendMessage(); 
+    // Update voice button after sending
+    setTimeout(() => toggleVoiceButton(), 50);
+  }
+});
+
+/* ─── Voice message ─── */
+// Voice recording is now handled by hold-to-record in voice.js
+
 
 $('text').addEventListener('input', () => {
   setMyTyping(true);
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => setMyTyping(false), 2500);
+  toggleVoiceButton();
 });
+
+/* ─── Toggle voice button visibility ─── */
+function toggleVoiceButton() {
+  const textInput = $('text');
+  const sendBtn = $('send');
+  const voiceBtn = $('voiceBtn');
+  
+  const isEmpty = textInput.value.trim() === '';
+  
+  if (isEmpty) {
+    sendBtn.style.display = 'none';
+    voiceBtn.style.display = 'flex';
+  } else {
+    sendBtn.style.display = 'flex';
+    voiceBtn.style.display = 'none';
+  }
+}
 
 async function sendMessage() {
   const t = $('text').value.trim();
@@ -281,6 +322,7 @@ async function sendMessage() {
   renderMsg({ me: true, text: t, ts: payload.ts, from: deviceId, name: getDisplayName(), uid, status: 'sending' });
   $('text').value = '';
   $('text').focus();
+  toggleVoiceButton();
   roomNode.get('messages').set(payload);
   
   // Update status to 'sent' after storing
@@ -326,45 +368,50 @@ $('fileInput').addEventListener('change', async e => {
     });
   }
 
-  const reader = new FileReader();
-  reader.onload = async ev => {
-    const dataUrl = ev.target.result;
-    
-    const basePayload = {
-      uid,
-      from:     deviceId,
-      fromName: getDisplayName() || 'Anonymous',
-      ts:       Date.now(),
-      data:     dataUrl,
-      fileName: file.name,
-      mimeType: file.type
-    };
+   const reader = new FileReader();
+   reader.onload = async ev => {
+     const dataUrl = ev.target.result;
+     
+     // Encrypt media data and metadata
+     const encryptedData = await enc(dataUrl);
+     const encryptedFileName = await enc(file.name);
+     const encryptedMimeType = await enc(file.type);
+     
+     const basePayload = {
+       uid,
+       from:     deviceId,
+       fromName: getDisplayName() || 'Anonymous',
+       ts:       Date.now(),
+       data:     encryptedData,
+       fileName: encryptedFileName,
+       mimeType: encryptedMimeType
+     };
 
-    if (mediaType === 'image') {
-      basePayload.type = 'image';
-      renderImage({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName() });
-    } else if (mediaType === 'video') {
-      basePayload.type = 'video';
-      renderVideo({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name });
-    } else if (mediaType === 'audio') {
-      basePayload.type = 'audio';
-      renderAudio({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name });
-    } else {
-      basePayload.type = 'file';
-      // Remove the sending message and add the real one
-      const messages = $('chat').querySelectorAll('.lcg-msg');
-      if (messages.length > 0) {
-        const lastMsg = messages[messages.length - 1];
-        if (lastMsg.textContent.includes('Sending file')) {
-          lastMsg.remove();
-        }
-      }
-      renderFile({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name, mimeType: file.type, sending: false });
-    }
+     if (mediaType === 'image') {
+       basePayload.type = 'image';
+       renderImage({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName() });
+     } else if (mediaType === 'video') {
+       basePayload.type = 'video';
+       renderVideo({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name });
+     } else if (mediaType === 'audio') {
+       basePayload.type = 'audio';
+       renderAudio({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name });
+     } else {
+       basePayload.type = 'file';
+       // Remove the sending message and add the real one
+       const messages = $('chat').querySelectorAll('.lcg-msg');
+       if (messages.length > 0) {
+         const lastMsg = messages[messages.length - 1];
+         if (lastMsg.textContent.includes('Sending file')) {
+           lastMsg.remove();
+         }
+       }
+       renderFile({ me: true, src: dataUrl, ts: basePayload.ts, from: deviceId, name: getDisplayName(), fileName: file.name, mimeType: file.type, sending: false });
+     }
 
-    roomNode.get('messages').set(basePayload);
-    toast('File sent!', 2000);
-  };
+     roomNode.get('messages').set(basePayload);
+     toast('File sent!', 2000);
+   };
 
   reader.onerror = () => {
     toast('Error reading file');
@@ -393,4 +440,15 @@ $('copyLink').addEventListener('click', async () => {
 window.addEventListener('load', () => {
   secret = $('secret').value;
   joinRoom($('room').value.trim());
+  // Initialize voice button visibility
+  setTimeout(() => toggleVoiceButton(), 0);
 });
+
+// Also try to initialize voice button as soon as this script loads
+// (in case DOM is already ready)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', toggleVoiceButton);
+} else {
+  // DOM is already loaded, call immediately
+  toggleVoiceButton();
+}

@@ -22,8 +22,8 @@
     fill="#111111"/>
 
   <!-- Centered message dots -->
-  <circle cx="85" cy="95" r="5" fill="#FFFFFF"/>
-  <circle cx="100" cy="95" r="5" fill="#FFFFFF"/>
-  <circle cx="115" cy="95" r="5" fill="#FFFFFF"/>
+  <circle cx="75" cy="90" r="10" fill="#FFFFFF"/>
+  <circle cx="100" cy="90" r="10" fill="#FFFFFF"/>
+  <circle cx="125" cy="90" r="10" fill="#FFFFFF"/>
 
 </svg>

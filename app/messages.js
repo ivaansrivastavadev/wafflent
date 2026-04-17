@@ -117,12 +117,130 @@ function renderVideo({ me, src, ts, from, name, fileName = 'video', uid, status 
 
   const senderLabel = !me ? (name || 'id ' + (from || '–').slice(0, 8)) : null;
 
+  // Create video container with custom styling
+  const videoContainer = document.createElement('div');
+  videoContainer.style.position = 'relative';
+  videoContainer.style.borderRadius = 'var(--r-md)';
+  videoContainer.style.overflow = 'hidden';
+  videoContainer.style.background = '#000';
+  videoContainer.style.maxWidth = '320px';
+
   const video = document.createElement('video');
-  video.className = 'lcg-msg-img';
+  video.className = 'lcg-msg-video';
   video.src = src;
-  video.controls = true;
-  video.style.cursor = 'pointer';
-  video.addEventListener('click', e => e.stopPropagation());
+  video.style.width = '100%';
+  video.style.height = 'auto';
+  video.style.display = 'block';
+  video.style.borderRadius = 'var(--r-md)';
+
+  // Video controls overlay
+  const controlsOverlay = document.createElement('div');
+  controlsOverlay.style.position = 'absolute';
+  controlsOverlay.style.bottom = '0';
+  controlsOverlay.style.left = '0';
+  controlsOverlay.style.right = '0';
+  controlsOverlay.style.background = 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)';
+  controlsOverlay.style.padding = '12px';
+  controlsOverlay.style.display = 'flex';
+  controlsOverlay.style.alignItems = 'center';
+  controlsOverlay.style.gap = '8px';
+  controlsOverlay.style.opacity = '0';
+  controlsOverlay.style.transition = 'opacity 120ms ease';
+
+  const playBtn = document.createElement('button');
+  playBtn.className = 'lcg-video-play-btn';
+  playBtn.innerHTML = '<i class="fas fa-play"></i>';
+  playBtn.style.width = '36px';
+  playBtn.style.height = '36px';
+  playBtn.style.borderRadius = '50%';
+  playBtn.style.border = 'none';
+  playBtn.style.background = 'rgba(255,255,255,0.9)';
+  playBtn.style.color = '#000';
+  playBtn.style.cursor = 'pointer';
+  playBtn.style.fontSize = '12px';
+  playBtn.style.display = 'flex';
+  playBtn.style.alignItems = 'center';
+  playBtn.style.justifyContent = 'center';
+  playBtn.style.transition = 'all 120ms ease';
+  playBtn.style.flexShrink = '0';
+
+  playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (video.paused) {
+      video.play();
+      playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    } else {
+      video.pause();
+      playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    }
+  });
+
+  video.addEventListener('ended', () => {
+    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+  });
+
+  const muteBtn = document.createElement('button');
+  muteBtn.className = 'lcg-video-mute-btn';
+  muteBtn.innerHTML = '<i class="fas fa-volume-high"></i>';
+  muteBtn.style.width = '32px';
+  muteBtn.style.height = '32px';
+  muteBtn.style.borderRadius = '50%';
+  muteBtn.style.border = 'none';
+  muteBtn.style.background = 'rgba(255,255,255,0.7)';
+  muteBtn.style.color = '#000';
+  muteBtn.style.cursor = 'pointer';
+  muteBtn.style.fontSize = '11px';
+  muteBtn.style.display = 'flex';
+  muteBtn.style.alignItems = 'center';
+  muteBtn.style.justifyContent = 'center';
+  muteBtn.style.transition = 'all 120ms ease';
+
+  muteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (video.muted) {
+      video.muted = false;
+      muteBtn.innerHTML = '<i class="fas fa-volume-high"></i>';
+    } else {
+      video.muted = true;
+      muteBtn.innerHTML = '<i class="fas fa-volume-mute"></i>';
+    }
+  });
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.className = 'lcg-video-download-btn';
+  downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
+  downloadBtn.style.width = '32px';
+  downloadBtn.style.height = '32px';
+  downloadBtn.style.borderRadius = '50%';
+  downloadBtn.style.border = 'none';
+  downloadBtn.style.background = 'rgba(255,255,255,0.7)';
+  downloadBtn.style.color = '#000';
+  downloadBtn.style.cursor = 'pointer';
+  downloadBtn.style.fontSize = '11px';
+  downloadBtn.style.display = 'flex';
+  downloadBtn.style.alignItems = 'center';
+  downloadBtn.style.justifyContent = 'center';
+  downloadBtn.style.transition = 'all 120ms ease';
+
+  downloadBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    downloadMedia(src, fileName || 'video.webm');
+  });
+
+  controlsOverlay.appendChild(playBtn);
+  controlsOverlay.appendChild(muteBtn);
+  controlsOverlay.appendChild(downloadBtn);
+
+  videoContainer.appendChild(video);
+  videoContainer.appendChild(controlsOverlay);
+
+  // Show controls on hover
+  videoContainer.addEventListener('mouseover', () => {
+    controlsOverlay.style.opacity = '1';
+  });
+  videoContainer.addEventListener('mouseout', () => {
+    controlsOverlay.style.opacity = '0';
+  });
 
   const meta = document.createElement('div');
   meta.className = 'lcg-msg-meta';
@@ -136,12 +254,12 @@ function renderVideo({ me, src, ts, from, name, fileName = 'video', uid, status 
   }
   
   meta.innerHTML = metaHTML;
-  
+
   if (me && uid) {
     msgStatus.set(uid, { status, element: meta.querySelector('[data-uid]') });
   }
 
-  box.appendChild(video);
+  box.appendChild(videoContainer);
   box.appendChild(meta);
   
   if (uid) {
@@ -168,12 +286,13 @@ function renderAudio({ me, src, ts, from, name, fileName = 'audio', uid, status 
 
   const senderLabel = !me ? (name || 'id ' + (from || '–').slice(0, 8)) : null;
 
-  const audio = document.createElement('audio');
-  audio.className = 'lcg-msg-audio';
-  audio.src = src;
-  audio.controls = true;
-  audio.style.width = '100%';
-  audio.style.maxWidth = '300px';
+  // Use custom media player
+  const mediaPlayer = createMediaPlayer({
+    src,
+    type: 'audio',
+    fileName: fileName || 'audio.webm',
+    onDownload: () => downloadMedia(src, fileName || 'audio.webm')
+  });
 
   const meta = document.createElement('div');
   meta.className = 'lcg-msg-meta';
@@ -187,12 +306,12 @@ function renderAudio({ me, src, ts, from, name, fileName = 'audio', uid, status 
   }
   
   meta.innerHTML = metaHTML;
-  
+
   if (me && uid) {
     msgStatus.set(uid, { status, element: meta.querySelector('[data-uid]') });
   }
 
-  box.appendChild(audio);
+  box.appendChild(mediaPlayer);
   box.appendChild(meta);
   
   if (uid) {

@@ -1746,6 +1746,192 @@ button, input, textarea, select {
 }
 
 /* ─────────────────────────────────────────────
+    VOICE MESSAGE
+ ───────────────────────────────────────────── */
+.lcg-voice-container {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 180px;
+  max-width: 280px;
+  backdrop-filter: blur(4px);
+}
+
+.lcg-msg.me .lcg-voice-container {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.lcg-msg.them .lcg-voice-container {
+  background: var(--accent);
+  color: white;
+}
+
+.lcg-voice-play-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.lcg-voice-play-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.lcg-voice-play-btn:active {
+  transform: scale(0.95);
+}
+
+.lcg-voice-duration {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: monospace;
+  min-width: 50px;
+}
+
+/* Recording indicator */
+#voiceBtn.recording {
+  animation: pulse 1s ease-in-out infinite;
+  background: var(--error) !important;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes pulse-mic {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* ─────────────────────────────────────────────
+    CUSTOM MEDIA PLAYER
+ ───────────────────────────────────────────── */
+.lcg-media-player {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(4px);
+  min-width: 280px;
+  max-width: 100%;
+}
+
+.lcg-media-slider {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.2);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.lcg-media-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.lcg-media-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.lcg-media-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: all 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.lcg-media-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.lcg-media-btn:active {
+  transform: scale(0.95);
+}
+
+/* Video player styling */
+.lcg-msg-video {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--r-md);
+}
+
+.lcg-video-play-btn,
+.lcg-video-mute-btn,
+.lcg-video-download-btn {
+  transition: all 120ms ease;
+}
+
+.lcg-video-play-btn:hover,
+.lcg-video-mute-btn:hover,
+.lcg-video-download-btn:hover {
+  transform: scale(1.1);
+}
+
+.lcg-video-play-btn:active,
+.lcg-video-mute-btn:active,
+.lcg-video-download-btn:active {
+  transform: scale(0.95);
+}
+
+/* ─────────────────────────────────────────────
     SHOW/HIDE (JS-powered class toggles)
  ───────────────────────────────────────────── */
 .wf-hidden  { display: none !important; }
