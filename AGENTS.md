@@ -9,8 +9,8 @@ A P2P Chat App, check README.md
     - AGENTS.md
 4. Do not make features marked as `[LATER]`
 (NOT NOW) ~~5. After doing any edit always run `./autotest.js` in the `localstore/tests/` directory~~
-6. Crawl "https://docs.puter.com/llms.txt"
-7. If i send excaildraw like images please only copy the layout make the fonts, styles, colors from styles file
-8. Use font-awsome
-9. Use WebRTC/GUN
-10. Don't be stuck on async errors please recheck async always
+6. If i send excaildraw like images please only copy the layout make the fonts, styles, colors from styles file
+7. Use font-awsome
+8. Use WebRTC/GUN
+9. Don't be stuck on async errors please recheck async always
+10. DO NOT COMMIT WITHOUT MY PERMISSION

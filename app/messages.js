@@ -457,24 +457,45 @@ function openContextMenu(e, msgElement, uid) {
   
   currentMsgElement = msgElement;
   currentMsgUid = uid;
-  currentMsgIsOwned = msgElement.classList.contains('me'); // Check if message has 'me' class
-  
-  const contentDiv = msgElement.querySelector('.lcg-msg-content');
-  currentMsgText = contentDiv ? contentDiv.textContent : '';
-  
-  const menu = $('msgContextMenu');
-  const rect = msgElement.getBoundingClientRect();
-  
-  menu.style.top = (rect.top + window.scrollY - 10) + 'px';
-  menu.style.left = (rect.right + 10) + 'px';
-  
-  // Show/hide edit and delete buttons based on message ownership
-  const editBtn = $('editMsgBtn');
-  const deleteBtn = $('deleteMsgBtn');
-  editBtn.style.display = currentMsgIsOwned ? 'block' : 'none';
-  deleteBtn.style.display = currentMsgIsOwned ? 'block' : 'none';
-  
-  menu.classList.add('open');
+   currentMsgIsOwned = msgElement.classList.contains('me'); // Check if message has 'me' class
+   
+   const contentDiv = msgElement.querySelector('.lcg-msg-content');
+   currentMsgText = contentDiv ? contentDiv.textContent : '';
+   
+   const menu = $('msgContextMenu');
+   const rect = msgElement.getBoundingClientRect();
+   
+   let top = rect.top + window.scrollY - 10;
+   let left = rect.right + 10;
+   
+   // Adjust if menu goes past right edge
+   const menuWidth = 200; // Approximate menu width
+   if (left + menuWidth > window.innerWidth) {
+     left = rect.left - menuWidth - 10;
+   }
+   
+   // Adjust if menu goes past bottom edge
+   const menuHeight = 200; // Approximate menu height
+   if (top + menuHeight > window.innerHeight + window.scrollY) {
+     top = rect.bottom + window.scrollY - menuHeight + 10;
+   }
+   
+   // Ensure menu stays within viewport horizontally
+   if (left < 12) left = 12;
+   if (left + menuWidth > window.innerWidth - 12) {
+     left = window.innerWidth - menuWidth - 12;
+   }
+   
+   menu.style.top = top + 'px';
+   menu.style.left = left + 'px';
+   
+   // Show/hide edit and delete buttons based on message ownership
+   const editBtn = $('editMsgBtn');
+   const deleteBtn = $('deleteMsgBtn');
+   editBtn.style.display = currentMsgIsOwned ? 'block' : 'none';
+   deleteBtn.style.display = currentMsgIsOwned ? 'block' : 'none';
+   
+   menu.classList.add('open');
 }
 
 function displayReactions(uid) {
@@ -506,14 +527,7 @@ function addReaction(emoji) {
     return;
   }
   
-  if (!msgReactions.has(currentMsgUid)) {
-    msgReactions.set(currentMsgUid, {});
-  }
-  const reactions = msgReactions.get(currentMsgUid);
-  reactions[emoji] = (reactions[emoji] || 0) + 1;
-  
-  displayReactions(currentMsgUid);
-  
+  // Store reaction in Gun - the listener will handle displaying it
   roomNode.get('reactions').get(currentMsgUid).get(crypto.randomUUID()).put({
     msgUid: currentMsgUid,
     from: deviceId,
@@ -594,13 +608,36 @@ $('deleteMsgBtn').addEventListener('click', () => {
 });
 
 $('reactMsgBtn').addEventListener('click', () => {
-  const menu = $('msgContextMenu');
-  const picker = $('emojiPicker');
-  
-  const rect = menu.getBoundingClientRect();
-  picker.style.top = (rect.top + window.scrollY) + 'px';
-  picker.style.left = (rect.left + 200) + 'px';
-  picker.classList.add('open');
+   const menu = $('msgContextMenu');
+   const picker = $('emojiPicker');
+   
+   const rect = menu.getBoundingClientRect();
+   let top = rect.top + window.scrollY;
+   let left = rect.left + 200;
+   
+   // Picker approximate dimensions
+   const pickerWidth = 320;
+   const pickerHeight = 350;
+   
+   // Adjust if goes past right edge
+   if (left + pickerWidth > window.innerWidth) {
+     left = rect.left - pickerWidth - 10;
+   }
+   
+   // Adjust if goes past bottom
+   if (top + pickerHeight > window.innerHeight + window.scrollY) {
+     top = rect.top + window.scrollY - pickerHeight;
+   }
+   
+   // Keep within viewport horizontally
+   if (left < 12) left = 12;
+   if (left + pickerWidth > window.innerWidth - 12) {
+     left = window.innerWidth - pickerWidth - 12;
+   }
+   
+   picker.style.top = top + 'px';
+   picker.style.left = left + 'px';
+   picker.classList.add('open');
 });
 
 $('copyMsgBtn').addEventListener('click', () => {

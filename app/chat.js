@@ -222,25 +222,31 @@ function joinRoom(id) {
     }
   });
   
-  // Listen for reactions
-  roomNode.get('reactions').map().on((reaction, key) => {
-    if (!reaction || typeof reaction !== 'object') return;
-    if (!reaction.msgUid || !reaction.emoji) return;
+  // Listen for reactions - simple and direct
+  roomNode.get('reactions').on((data, key) => {
+    if (!data || typeof data !== 'object') return;
     
-    // Track reaction
-    if (!msgReactions.has(reaction.msgUid)) {
-      msgReactions.set(reaction.msgUid, {});
-    }
-    const reactions = msgReactions.get(reaction.msgUid);
-    reactions[reaction.emoji] = (reactions[reaction.emoji] || 0) + 1;
-    
-    // Display reactions for this message
-    displayReactions(reaction.msgUid);
-    
-    // Show toast for others' reactions
-    if (reaction.from !== deviceId) {
-      toast(`${reaction.fromName || 'Someone'} reacted: ${reaction.emoji}`);
-    }
+    // Iterate through all messages with reactions
+    Object.keys(data).forEach(msgUid => {
+      if (msgUid === '_' || msgUid === '#') return; // Skip Gun metadata
+      
+      const msgReactionsObj = data[msgUid];
+      if (!msgReactionsObj || typeof msgReactionsObj !== 'object') return;
+      
+      // Count reactions per emoji
+      const emojiCount = {};
+      Object.values(msgReactionsObj).forEach(reaction => {
+        if (reaction && reaction.emoji) {
+          emojiCount[reaction.emoji] = (emojiCount[reaction.emoji] || 0) + 1;
+        }
+      });
+      
+      // Update the reaction map and display
+      if (Object.keys(emojiCount).length > 0) {
+        msgReactions.set(msgUid, emojiCount);
+        displayReactions(msgUid);
+      }
+    });
   });
 }
 
@@ -323,6 +329,13 @@ async function sendMessage() {
   $('text').value = '';
   $('text').focus();
   toggleVoiceButton();
+  
+  // Show attachment buttons again
+  const stickerBtn = $('stickerBtn');
+  const attachBtn = document.querySelector('.lcg-attach');
+  if (stickerBtn) stickerBtn.style.display = 'flex';
+  if (attachBtn) attachBtn.style.display = 'flex';
+  
   roomNode.get('messages').set(payload);
   
   // Update status to 'sent' after storing
@@ -421,8 +434,6 @@ $('fileInput').addEventListener('change', async e => {
 });
 
 /* ─── Toolbar actions ─── */
-$('join').addEventListener('click', () => joinRoom($('room').value.trim()));
-
 $('copyLink').addEventListener('click', async () => {
   const id = $('room').value.trim();
   let url = location.origin + location.pathname + '#' + encodeURIComponent(id);

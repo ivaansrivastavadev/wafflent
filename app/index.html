@@ -333,48 +333,81 @@
     }
     
     .lcg-qr-close {
-      position: absolute; top: 16px; right: 16px;
-      background: var(--bg-elevated); border: 1px solid var(--border);
-      border-radius: 50%; width: 32px; height: 32px;
-      color: var(--text-primary); font-size: 16px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      transition: all var(--dur-fast) var(--ease);
-    }
-    .lcg-qr-close:hover {
-      background: var(--error-subtle);
-      color: var(--error);
-      border-color: var(--error);
-    }
+       position: absolute; top: 12px; right: 12px;
+       background: var(--bg-elevated); border: 1px solid var(--border);
+       border-radius: 50%; width: 40px; height: 40px;
+       color: var(--text-primary); font-size: 18px;
+       display: flex; align-items: center; justify-content: center;
+       cursor: pointer;
+       transition: all var(--dur-fast) var(--ease);
+       z-index: 10;
+     }
+     .lcg-qr-close:hover {
+       background: var(--error-subtle);
+       color: var(--error);
+       border-color: var(--error);
+     }
+     .lcg-qr-close:active {
+       transform: scale(0.95);
+     }
 
-    /* ── Message Context Menu ── */
-    .msg-context-menu {
-      position: fixed;
-      background: var(--bg-elevated);
-      border: 1px solid var(--border);
-      border-radius: var(--r-lg);
-      box-shadow: var(--shadow-lg);
-      z-index: 500;
-      display: none;
-      min-width: 180px;
-      overflow: hidden;
-      animation: msg-menu-appear 150ms var(--ease);
-    }
-    
-    .msg-context-menu.open {
-      display: flex;
-      flex-direction: column;
-    }
+     /* ── Message Context Menu ── */
+     .msg-context-menu {
+       position: fixed;
+       background: var(--bg-elevated);
+       border: 1px solid var(--border);
+       border-radius: var(--r-lg);
+       box-shadow: var(--shadow-lg);
+       z-index: 500;
+       display: none;
+       min-width: 180px;
+       overflow: hidden;
+       animation: msg-menu-appear 150ms var(--ease);
+       max-height: 90vh;
+       overflow-y: auto;
+       max-width: calc(100vw - 24px);
+     }
+     
+     .msg-context-menu.open {
+       display: flex;
+       flex-direction: column;
+     }
     
     @keyframes msg-menu-appear {
       from { opacity: 0; transform: scale(0.95); }
       to { opacity: 1; transform: scale(1); }
     }
     
-    @keyframes msg-disappear {
-      from { opacity: 1; transform: scale(1); }
-      to { opacity: 0; transform: scale(0.95); }
-    }
+     @keyframes msg-disappear {
+       from { opacity: 1; transform: scale(1); }
+       to { opacity: 0; transform: scale(0.95); }
+     }
+
+     @keyframes qr-expand {
+       from {
+         opacity: 0;
+         transform: scaleY(0);
+         max-height: 0;
+       }
+       to {
+         opacity: 1;
+         transform: scaleY(1);
+         max-height: 500px;
+       }
+     }
+
+     @keyframes qr-collapse {
+       from {
+         opacity: 1;
+         transform: scaleY(1);
+         max-height: 500px;
+       }
+       to {
+         opacity: 0;
+         transform: scaleY(0);
+         max-height: 0;
+       }
+     }
     
     .msg-menu-item {
       display: flex;
@@ -506,15 +539,11 @@
 
     <!-- Room status bar -->
     <div style="padding:8px 16px; background:var(--bg-elevated); border-bottom:1px solid var(--border); font-size:var(--text-xs); color:var(--text-secondary); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:nowrap;">
-      <h1 class="wf-h2" style="margin:0; font-size:var(--text-lg);">Wafflent</h1>
+      <button id="wafflentBtn" class="wf-h2" style="margin:0; font-size:var(--text-lg); background:none; border:none; color:var(--text-primary); cursor:pointer; padding:0; font-family:inherit; font-weight:inherit; transition:color var(--dur-fast) var(--ease);" title="Open menu">Wafflent</button>
       <span id="roomHint" style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">No room joined</span>
-       <div style="display:flex; align-items:center; gap:8px; margin-left:auto; flex-shrink:0;">
-         <button id="roomBtn" class="wf-btn wf-btn-outlined sm" title="Room settings" style="font-size:var(--text-xs);"><i class="fas fa-door-open"></i>&nbsp; Room</button>
-         <div style="display:flex; align-items:center; gap:6px;">
-           <span class="lcg-peer-dot" id="peerDot"></span>
-           <span id="peerStatus" style="white-space:nowrap;">Connecting…</span>
-         </div>
-       </div>
+        <div style="display:flex; align-items:center; gap:8px; margin-left:auto; flex-shrink:0;">
+          <button id="roomBtn" class="wf-btn wf-btn-outlined sm" title="Room settings" style="font-size:var(--text-xs);"><i class="fas fa-door-open"></i>&nbsp; Room</button>
+        </div>
     </div>
 
      <!-- Chat area (with scroll button) -->
@@ -560,13 +589,13 @@
 <!-- Toast -->
 <div class="lcg-toast" id="toast"></div>
 
-<!-- Room Settings Modal -->
-<div class="lcg-qr-modal" id="roomModal">
-  <div class="lcg-qr-container" style="max-width: 420px;">
-     <button class="lcg-qr-close" id="roomModalClose">✕</button>
-     <h2 style="margin: 0 0 24px 0; color: var(--text-primary); font-size: var(--text-xl); font-weight: 700;">Room Settings</h2>
+<!-- Menu Modal -->
+<div class="lcg-qr-modal" id="menuModal">
+  <div class="lcg-qr-container" style="max-width: 320px;">
+     <button class="lcg-qr-close" id="menuModalClose">✕</button>
+     <h2 style="margin: 0 0 24px 0; color: var(--text-primary); font-size: var(--text-xl); font-weight: 700;">Menu</h2>
      
-      <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
         <!-- Device ID Pill -->
         <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--r-pill); background: var(--bg-elevated); border: 1.5px solid var(--border); font-size: var(--text-xs); color: var(--text-secondary); width: fit-content;">
           <i class="fas fa-fingerprint"></i>
@@ -576,7 +605,63 @@
           <i class="fas fa-pencil" style="font-size:9px; margin-left:2px; opacity:0.5; cursor:pointer;" id="editDeviceNameBtn"></i>
         </div>
         
-        <!-- Chat ID -->
+        <!-- Settings Option -->
+       <button id="menuSettings" type="button" class="wf-btn wf-btn-outlined" style="width: 100%; justify-content: flex-start; padding: 12px 16px; font-size: var(--text-base); border: 1.5px solid var(--border);">
+         <i class="fas fa-cog" style="margin-right: 8px;"></i>
+         Settings
+       </button>
+     </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="lcg-qr-modal" id="settingsModal">
+  <div class="lcg-qr-container" style="max-width: 320px;">
+     <button class="lcg-qr-close" id="settingsModalClose">✕</button>
+     <h2 style="margin: 0 0 24px 0; color: var(--text-primary); font-size: var(--text-xl); font-weight: 700;">Settings</h2>
+     
+     <div style="display: flex; flex-direction: column; gap: 16px;">
+       <!-- Auto-Join Toggle -->
+       <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-overlay); border-radius: var(--r-lg); border: 1px solid var(--border);">
+          <div>
+            <div style="font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">Auto-Join</div>
+            <div style="font-size: var(--text-xs); color: var(--text-secondary);">Join when code changes</div>
+          </div>
+          <label class="wf-toggle">
+            <input type="checkbox" id="autoJoinToggle" />
+            <span class="wf-toggle-slider"></span>
+          </label>
+        </div>
+        
+       <!-- Minimize Status Bar on Typing (Mobile) -->
+       <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-overlay); border-radius: var(--r-lg); border: 1px solid var(--border);">
+          <div>
+            <div style="font-weight: 500; color: var(--text-primary); margin-bottom: 4px;">Minimize Status Bar</div>
+            <div style="font-size: var(--text-xs); color: var(--text-secondary);">Auto-minimize when typing (mobile)</div>
+          </div>
+          <label class="wf-toggle">
+            <input type="checkbox" id="minimizeStatusBarToggle" />
+            <span class="wf-toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+  </div>
+</div>
+
+<!-- Room Settings Modal -->
+<div class="lcg-qr-modal" id="roomModal">
+  <div class="lcg-qr-container" style="max-width: 420px;">
+     <button class="lcg-qr-close" id="roomModalClose">✕</button>
+      <h2 style="margin: 0 0 24px 0; color: var(--text-primary); font-size: var(--text-xl); font-weight: 700;">Room Settings</h2>
+      
+       <div style="display: flex; flex-direction: column; gap: 16px;">
+         <!-- Peer Status -->
+         <div style="display: flex; align-items: center; gap: 8px; padding: 12px; background: var(--bg-overlay); border-radius: var(--r-lg); border: 1px solid var(--border);">
+           <span class="lcg-peer-dot" id="peerDot"></span>
+           <span id="peerStatus" style="white-space:nowrap; color: var(--text-primary);">Connecting…</span>
+         </div>
+         
+         <!-- Chat ID -->
         <div class="wf-form-group">
           <label class="wf-label">chat id <span style="opacity:0.5;">(share with your friend)</span></label>
           <div class="wf-input-wrapper">
@@ -594,19 +679,28 @@
           </div>
         </div>
         
-        <!-- QR Code Section -->
-        <div id="qrSection" style="display: none; flex-direction: column; align-items: center; gap: 12px; padding: 16px; background: var(--bg-overlay); border-radius: var(--r-lg);">
-          <div id="roomQrContainer" style="background: white; padding: 12px; border-radius: var(--r-md);"></div>
+        <!-- QR Code Toggle Button -->
+        <div id="qrToggle" style="display: flex; gap: 8px; flex-wrap: wrap; background: var(--bg-overlay); padding: 12px; border-radius: var(--r-lg); border: 1.5px solid var(--border); cursor: pointer; align-items: center; justify-content: center; transition: all var(--dur-mid) var(--ease);">
+          <i class="fas fa-qrcode" style="font-size: 16px; color: var(--accent);"></i>
+          <span style="font-weight: 500; color: var(--text-primary);">Show QR Code</span>
+        </div>
+        
+        <!-- QR Code Section (hidden by default) -->
+        <div id="qrSection" style="display: none; flex-direction: column; align-items: center; gap: 12px; padding: 16px; background: var(--bg-overlay); border-radius: var(--r-lg); border: 1.5px solid var(--border); cursor: pointer; overflow: hidden;">
+          <div style="text-align: center; font-size: var(--text-xs); color: var(--text-secondary);">
+            <div style="color: var(--text-tertiary); margin-bottom: 8px;"><i class="fas fa-chevron-up"></i> Click to hide</div>
+          </div>
+          <div id="roomQrContainer" style="background: white; padding: 12px; border-radius: var(--r-md); pointer-events: none;"></div>
           <div style="text-align: center; font-size: var(--text-xs); color: var(--text-secondary);">
             <div style="color: var(--text-tertiary); margin-bottom: 4px;">Room ID</div>
             <div id="roomQrId" style="font-family: monospace; font-weight: 600; color: var(--accent);"></div>
           </div>
         </div>
         
-        <!-- Buttons -->
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <button id="join" type="button" class="wf-btn wf-btn-filled" style="flex:1;"><i class="fas fa-right-to-bracket"></i>&nbsp; Join / Create</button>
-          <button id="copyLink" type="button" class="wf-btn wf-btn-outlined" style="flex:1;"><i class="fas fa-link"></i>&nbsp; Copy Invite</button>
+        <!-- Buttons (compact box) -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; background: var(--bg-overlay); padding: 12px; border-radius: var(--r-lg);">
+          <button id="join" type="button" class="wf-btn wf-btn-filled" style="flex:1; min-width: 120px; padding: 8px 12px; font-size: var(--text-sm);"><i class="fas fa-right-to-bracket"></i>&nbsp; Join</button>
+          <button id="copyLink" type="button" class="wf-btn wf-btn-outlined" style="flex:1; min-width: 120px; padding: 8px 12px; font-size: var(--text-sm);"><i class="fas fa-link"></i>&nbsp; Copy</button>
         </div>
       </div>
   </div>
@@ -647,8 +741,8 @@
 <!-- App modules (load in order) -->
 <script src="/app/utils.js"></script>
 <script src="/app/p2p.js"></script>
-<script src="/app/chat.js"></script>
 <script src="/app/messages.js"></script>
+<script src="/app/chat.js"></script>
 <script src="/app/voice.js"></script>
 <script src="/app/media-player.js"></script>
 <script src="/app/ui.js"></script>
