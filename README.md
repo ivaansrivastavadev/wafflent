@@ -1,7 +1,7 @@
 # Wafflent
 
 ## Project status
-- Version: 0.2.5 (11)
+- Version: 0.2.5.1 (12)
 - API 1.5(10)
 
 ## What is wafflent?

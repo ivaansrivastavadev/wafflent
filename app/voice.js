@@ -694,6 +694,8 @@ function exitManualReview() {
     inputBar.style.display = 'flex';
   }
   recordingElement = null;
+  isRecording = false;
+  updateRecordingUI(false);
 }
 
 
